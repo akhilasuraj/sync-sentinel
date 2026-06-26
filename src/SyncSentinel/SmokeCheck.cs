@@ -52,6 +52,28 @@ internal static class SmokeCheck
             Report($"[static] FAIL  {ex.Message}");
         }
 
+        try
+        {
+            var post = await http.PostAsync("/api/run", null);
+            // Run executes on a background task; poll the demo destination briefly.
+            var dst = Path.Combine(Path.GetTempPath(), "SyncSentinelDemo", "backup");
+            var mirrored = false;
+            for (var i = 0; i < 50 && !mirrored; i++)
+            {
+                if (File.Exists(Path.Combine(dst, "readme.txt"))) mirrored = true;
+                else await Task.Delay(200);
+            }
+            var binExcluded = !Directory.Exists(Path.Combine(dst, "bin"));
+            var runOk = post.IsSuccessStatusCode && mirrored && binExcluded;
+            ok &= runOk;
+            Report($"[run]    {(runOk ? "PASS" : "FAIL")}  posted={post.StatusCode} mirrored={mirrored} binExcluded={binExcluded}");
+        }
+        catch (Exception ex)
+        {
+            ok = false;
+            Report($"[run]    FAIL  {ex.Message}");
+        }
+
         Report($"[smoke]  {(ok ? "PASS" : "FAIL")}  {baseUrl}");
 
         File.WriteAllText(

@@ -30,6 +30,7 @@ internal static class Program
         // Loopback only, OS-assigned free port — never network-exposed.
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         ApiHost.ConfigureServices(builder.Services);
+        builder.Services.AddSingleton<IBackupJobSource, DemoJobSource>();
 
         var app = builder.Build();
         app.UseDefaultFiles();

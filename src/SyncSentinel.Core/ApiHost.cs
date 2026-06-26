@@ -16,12 +16,18 @@ public static class ApiHost
     {
         services.AddSignalR();
         services.AddHostedService<HeartbeatService>();
+        services.AddSingleton<RobocopyRunner>();
+        services.AddSingleton<JobRunCoordinator>();
     }
 
     /// <summary>Map SyncSentinel's endpoints (REST + SignalR) onto the app.</summary>
     public static void MapEndpoints(WebApplication app)
     {
         app.MapGet("/api/ping", () => Results.Json(new { message = "pong" }));
+        app.MapPost("/api/run", (IBackupJobSource jobs, JobRunCoordinator coordinator) =>
+            coordinator.TryStart(jobs.GetCurrent())
+                ? Results.Accepted()
+                : Results.Conflict(new { message = "a run is already in progress" }));
         app.MapHub<StatusHub>("/hubs/status");
     }
 }
