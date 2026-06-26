@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SyncSentinel</RootNamespace>
+    <AssemblyName>SyncSentinel</AssemblyName>
+  </PropertyGroup>
+
+  <!-- ASP.NET Core (Kestrel, SignalR, static files) hosted in-process -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Packages added via `dotnet add package` (versions resolved on restore):
+       Microsoft.Web.WebView2, Microsoft.AspNetCore.SignalR.Client -->
+
+  <!-- The React build (src/web -> wwwroot) is served as static files and
+       copied into the output. -->
+  <ItemGroup>
+    <Content Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SyncSentinel.Core\SyncSentinel.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Convenience: build the React app if it hasn't been built yet (fresh
+       clone). Day-to-day, run `npm run build` in src/web after UI changes. -->
+  <Target Name="BuildReactApp" BeforeTargets="Build" Condition="!Exists('wwwroot\index.html')">
+    <Message Importance="high" Text="wwwroot empty — building React app (src/web)..." />
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)\..\web" />
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)\..\web" />
+  </Target>
+
+</Project>

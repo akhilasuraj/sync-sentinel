@@ -11,6 +11,12 @@ build/
 .next/
 *.local
 
+# Generated React build (served by the shell; rebuilt by `npm run build`)
+src/SyncSentinel/wwwroot/
+
+# Test output
+[Tt]est[Rr]esults/
+
 # Misc
 .DS_Store
 Thumbs.db

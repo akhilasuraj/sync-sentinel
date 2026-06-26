@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SyncSentinel.Core/SyncSentinel.Core.csproj" />
+    <Project Path="src/SyncSentinel/SyncSentinel.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SyncSentinel.Tests/SyncSentinel.Tests.csproj" />
+  </Folder>
+</Solution>
