@@ -21,7 +21,7 @@ internal static class TestApp
         builder.Logging.ClearProviders();
 
         ApiHost.ConfigureServices(builder.Services);
-        builder.Services.AddSingleton(new ConfigStore(
+        builder.Services.AddSingleton(new StoragePaths(
             configDir ?? Path.Combine(Path.GetTempPath(), "ss-testapp-" + Guid.NewGuid().ToString("N"))));
 
         var app = builder.Build();

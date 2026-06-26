@@ -18,9 +18,15 @@ public static class ApiHost
         services.AddHostedService<HeartbeatService>();
         services.AddSingleton<RobocopyRunner>();
         services.AddSingleton<JobRunCoordinator>();
+        // Storage lives under one root (StoragePaths) — the shell registers it at
+        // %APPDATA%\SyncSentinel; tests register a scratch root.
+        services.AddSingleton(sp => new ConfigStore(sp.GetRequiredService<StoragePaths>().Root));
+        services.AddSingleton(sp => new RunHistoryStore(sp.GetRequiredService<StoragePaths>().HistoryDbPath));
+        services.AddSingleton(sp => new RunRecorder(
+            sp.GetRequiredService<RunHistoryStore>(),
+            sp.GetRequiredService<ConfigService>(),
+            sp.GetRequiredService<StoragePaths>()));
         services.AddSingleton<ConfigService>();
-        // ConfigService depends on a ConfigStore — the shell registers one at
-        // %APPDATA%; tests register one at a scratch dir.
         services.AddSingleton<RunQueue>();
         services.AddSingleton<Scheduler>();
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
@@ -44,6 +50,19 @@ public static class ApiHost
             cfg.DeleteJob(id) ? Results.NoContent() : Results.NotFound());
         app.MapPost("/api/jobs/{id}/run", (string id, Scheduler scheduler) =>
             scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound());
+
+        // ── Run history ───────────────────────────────────────────────────────
+        app.MapGet("/api/jobs/{id}/runs", (string id, RunHistoryStore history) =>
+            Results.Json(history.ListByJob(id)));
+        app.MapGet("/api/runs/{runId}/log", (string runId, RunHistoryStore history) =>
+        {
+            var run = history.Get(runId);
+            if (run is null || !File.Exists(run.LogPath))
+            {
+                return Results.NotFound();
+            }
+            return Results.Text(File.ReadAllText(run.LogPath));
+        });
 
         // ── Effective-command preview (works for unsaved edits) ───────────────
         app.MapPost("/api/preview", (Job job, ConfigService cfg) =>

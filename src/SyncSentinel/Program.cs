@@ -31,17 +31,17 @@ internal static class Program
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         ApiHost.ConfigureServices(builder.Services);
 
-        // The config store lives at %APPDATA%\SyncSentinel for real runs; under
-        // --smoke it uses a throwaway dir so the check never touches real config.
+        // Data lives under %APPDATA%\SyncSentinel for real runs; under --smoke it
+        // uses a throwaway root so the check never touches real config/history.
         var smoke = args.Contains("--smoke");
-        var configDir = smoke
-            ? Path.Combine(Path.GetTempPath(), "SyncSentinelSmoke")
-            : ConfigStore.DefaultDirectory;
-        if (smoke && Directory.Exists(configDir))
+        var paths = smoke
+            ? new StoragePaths(Path.Combine(Path.GetTempPath(), "SyncSentinelSmoke"))
+            : StoragePaths.Default;
+        if (smoke && Directory.Exists(paths.Root))
         {
-            Directory.Delete(configDir, recursive: true); // fresh seed each smoke run
+            Directory.Delete(paths.Root, recursive: true); // fresh seed each smoke run
         }
-        builder.Services.AddSingleton(new ConfigStore(configDir));
+        builder.Services.AddSingleton(paths);
         // Auto-scheduling runs only in the real app (tests drive the scheduler
         // directly), so register the periodic tick here, not in ApiHost.
         builder.Services.AddHostedService<SchedulerTickService>();

@@ -7,6 +7,8 @@ namespace SyncSentinel.Core;
 /// </summary>
 public sealed record BackupJob
 {
+    /// <summary>The persisted job this was resolved from (empty for ad-hoc jobs).</summary>
+    public string JobId { get; init; } = "";
     public string Name { get; init; } = "";
     public required string Source { get; init; }
     public required string Destination { get; init; }

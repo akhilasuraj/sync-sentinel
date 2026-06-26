@@ -19,6 +19,7 @@ public static class JobResolver
 
         return new BackupJob
         {
+            JobId = job.Id,
             Name = job.Name,
             Source = job.Source,
             Destination = job.Destination,

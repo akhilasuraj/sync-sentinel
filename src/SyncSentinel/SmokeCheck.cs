@@ -90,16 +90,19 @@ internal static class SmokeCheck
             var jobId = doc.RootElement.GetProperty("id").GetString();
 
             var post = await http.PostAsync($"/api/jobs/{jobId}/run", null);
-            var mirrored = false;
-            for (var i = 0; i < 50 && !mirrored; i++)
+            // Wait until the run is recorded in history (implies it finished).
+            var recorded = 0;
+            for (var i = 0; i < 60 && recorded == 0; i++)
             {
-                if (File.Exists(Path.Combine(dst, "readme.txt"))) mirrored = true;
-                else await Task.Delay(200);
+                using var runsDoc = JsonDocument.Parse(await http.GetStringAsync($"/api/jobs/{jobId}/runs"));
+                recorded = runsDoc.RootElement.GetArrayLength();
+                if (recorded == 0) await Task.Delay(250);
             }
+            var mirrored = File.Exists(Path.Combine(dst, "readme.txt"));
             var binExcluded = !Directory.Exists(Path.Combine(dst, "bin"));
-            var runOk = create.IsSuccessStatusCode && post.IsSuccessStatusCode && mirrored && binExcluded;
+            var runOk = create.IsSuccessStatusCode && post.IsSuccessStatusCode && recorded >= 1 && mirrored && binExcluded;
             ok &= runOk;
-            Report($"[run]    {(runOk ? "PASS" : "FAIL")}  job={jobId} posted={post.StatusCode} mirrored={mirrored} binExcluded={binExcluded}");
+            Report($"[run]    {(runOk ? "PASS" : "FAIL")}  job={jobId} posted={post.StatusCode} recorded={recorded} mirrored={mirrored} binExcluded={binExcluded}");
         }
         catch (Exception ex)
         {
