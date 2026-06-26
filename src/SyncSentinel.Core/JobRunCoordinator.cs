@@ -26,8 +26,9 @@ public sealed class JobRunCoordinator(IHubContext<StatusHub> hub, RobocopyRunner
             _ = hub.Clients.All.SendAsync("log", line);
         });
         var finished = DateTimeOffset.UtcNow;
-        await hub.Clients.All.SendAsync("runFinished", result.Status.ToString(), result.ExitCode);
-
+        // Record first so "runFinished" means "fully recorded" — a consumer that
+        // reacts to it (the UI, a test) can immediately read the run from history.
         recorder.Record(job.JobId, job.Name, started, finished, result.Status, result.ExitCode, lines);
+        await hub.Clients.All.SendAsync("runFinished", result.Status.ToString(), result.ExitCode);
     }
 }

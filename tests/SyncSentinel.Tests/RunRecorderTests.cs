@@ -19,7 +19,7 @@ public sealed class RunRecorderTests : IDisposable
 
     public void Dispose()
     {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        _history.Dispose(); // close the connection so the file can be deleted
         Directory.Delete(_dir, recursive: true);
     }
 

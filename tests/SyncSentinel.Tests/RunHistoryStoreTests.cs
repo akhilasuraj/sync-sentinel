@@ -15,7 +15,7 @@ public sealed class RunHistoryStoreTests : IDisposable
 
     public void Dispose()
     {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); // release the file handle
+        _store.Dispose(); // close the connection so the file can be deleted
         Directory.Delete(_dir, recursive: true);
     }
 
