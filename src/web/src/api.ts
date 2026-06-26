@@ -3,6 +3,7 @@ import type {
   FolderExclusionSet,
   GlobalSettings,
   Job,
+  RunRecord,
   SyncSentinelConfig,
 } from './types'
 
@@ -31,6 +32,8 @@ export const api = {
   deleteJob: (id: string) => fetch(`/api/jobs/${id}`, { method: 'DELETE' }),
   runJob: (id: string) => fetch(`/api/jobs/${id}/run`, { method: 'POST' }),
   preview: (j: Partial<Job>) => fetch('/api/preview', post(j)).then(json<{ command: string }>),
+  getRuns: (jobId: string) => fetch(`/api/jobs/${jobId}/runs`).then(json<RunRecord[]>),
+  getRunLog: (runId: string) => fetch(`/api/runs/${runId}/log`).then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`)))),
 
   addFolderSet: (s: Partial<FolderExclusionSet>) => fetch('/api/folder-sets', post(s)).then(json<FolderExclusionSet>),
   updateFolderSet: (id: string, s: FolderExclusionSet) => fetch(`/api/folder-sets/${id}`, put(s)),

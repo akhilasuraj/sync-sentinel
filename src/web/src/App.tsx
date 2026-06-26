@@ -4,6 +4,7 @@ import { useHub, type RunState } from './useHub'
 import { blankJob, type Job, type SyncSentinelConfig } from './types'
 import JobCard from './components/JobCard'
 import JobEditor from './components/JobEditor'
+import JobHistory from './components/JobHistory'
 import SetsTab from './components/SetsTab'
 import SettingsTab from './components/SettingsTab'
 
@@ -21,6 +22,7 @@ export default function App() {
   const [config, setConfig] = useState<SyncSentinelConfig | null>(null)
   const [tab, setTab] = useState<Tab>('jobs')
   const [editing, setEditing] = useState<Job | null>(null)
+  const [historyJob, setHistoryJob] = useState<Job | null>(null)
   const [runningId, setRunningId] = useState<string | null>(null)
   const logRef = useRef<HTMLPreElement>(null)
 
@@ -83,6 +85,7 @@ export default function App() {
                 onRun={() => runJob(job)}
                 onEdit={() => setEditing(job)}
                 onDelete={() => deleteJob(job)}
+                onHistory={() => setHistoryJob(job)}
               />
             ))}
           </div>
@@ -113,6 +116,10 @@ export default function App() {
           onSaved={() => { setEditing(null); reload() }}
           onCancel={() => setEditing(null)}
         />
+      )}
+
+      {historyJob && (
+        <JobHistory jobId={historyJob.id} jobName={historyJob.name} onClose={() => setHistoryJob(null)} />
       )}
     </div>
   )

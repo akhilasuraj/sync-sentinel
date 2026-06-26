@@ -44,6 +44,22 @@ export interface SyncSentinelConfig {
   settings: GlobalSettings
 }
 
+export interface RunRecord {
+  id: string
+  jobId: string
+  jobName: string
+  status: string
+  startedUtc: string
+  finishedUtc: string
+  filesCopied: number
+  filesSkipped: number
+  filesFailed: number
+  filesExtra: number
+  exitCode: number
+  logPath: string
+  durationSeconds: number
+}
+
 export const blankJob = (): Job => ({
   id: '',
   name: '',

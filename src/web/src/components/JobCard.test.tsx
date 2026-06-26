@@ -16,29 +16,29 @@ const noop = () => {}
 
 describe('JobCard', () => {
   it('shows the job name and source → destination', () => {
-    render(<JobCard job={job()} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} />)
+    render(<JobCard job={job()} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
     expect(screen.getByText('PEMS')).toBeInTheDocument()
     expect(screen.getByText(/C:\\dev\\PEMS/)).toBeInTheDocument()
   })
 
   it('marks a disabled job as paused', () => {
-    render(<JobCard job={job({ enabled: false })} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} />)
+    render(<JobCard job={job({ enabled: false })} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
     expect(screen.getByText('paused')).toBeInTheDocument()
   })
 
   it('shows the schedule interval for an enabled job', () => {
-    render(<JobCard job={job({ enabled: true, intervalMinutes: 30 })} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} />)
+    render(<JobCard job={job({ enabled: true, intervalMinutes: 30 })} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
     expect(screen.getByText(/every 30m/i)).toBeInTheDocument()
   })
 
   it('disables Run and shows Running… while running', () => {
-    render(<JobCard job={job({ enabled: true })} isRunning onRun={noop} onEdit={noop} onDelete={noop} />)
+    render(<JobCard job={job({ enabled: true })} isRunning onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
     expect(screen.getByRole('button', { name: 'Running…' })).toBeDisabled()
   })
 
   it('calls onRun when Run now is clicked', () => {
     const onRun = vi.fn()
-    render(<JobCard job={job({ enabled: true })} isRunning={false} onRun={onRun} onEdit={noop} onDelete={noop} />)
+    render(<JobCard job={job({ enabled: true })} isRunning={false} onRun={onRun} onEdit={noop} onDelete={noop} onHistory={noop} />)
     screen.getByRole('button', { name: 'Run now' }).click()
     expect(onRun).toHaveBeenCalledOnce()
   })

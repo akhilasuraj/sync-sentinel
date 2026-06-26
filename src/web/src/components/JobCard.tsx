@@ -6,10 +6,11 @@ interface Props {
   onRun: () => void
   onEdit: () => void
   onDelete: () => void
+  onHistory: () => void
 }
 
 /** A single job row on the dashboard: status dot, name, paths, and actions. */
-export default function JobCard({ job, isRunning, onRun, onEdit, onDelete }: Props) {
+export default function JobCard({ job, isRunning, onRun, onEdit, onDelete, onHistory }: Props) {
   const dot = isRunning ? 'bg-amber-400 animate-pulse' : job.enabled ? 'bg-slate-500' : 'bg-slate-700'
 
   return (
@@ -28,6 +29,7 @@ export default function JobCard({ job, isRunning, onRun, onEdit, onDelete }: Pro
       </div>
       <div className="flex shrink-0 gap-2">
         <button className="btn-ghost" disabled={isRunning} onClick={onRun}>{isRunning ? 'Running…' : 'Run now'}</button>
+        <button className="btn-ghost" onClick={onHistory}>History</button>
         <button className="btn-ghost" onClick={onEdit}>Edit</button>
         <button className="btn-ghost text-red-400" onClick={onDelete}>Delete</button>
       </div>
