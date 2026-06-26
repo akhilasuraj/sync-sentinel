@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { splitItems } from '../lib/forms'
 import type { FileExclusionSet, FolderExclusionSet } from '../types'
-
-const splitItems = (text: string): string[] =>
-  text.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
 
 interface Props {
   folderSets: FolderExclusionSet[]

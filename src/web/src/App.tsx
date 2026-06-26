@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { useHub, type RunState } from './useHub'
 import { blankJob, type Job, type SyncSentinelConfig } from './types'
+import JobCard from './components/JobCard'
 import JobEditor from './components/JobEditor'
 import SetsTab from './components/SetsTab'
 import SettingsTab from './components/SettingsTab'
@@ -74,26 +75,16 @@ export default function App() {
               <button className="btn" onClick={() => setEditing(blankJob())}>+ New job</button>
             </div>
             {config.jobs.length === 0 && <p className="text-sm text-slate-500">No jobs yet — add one.</p>}
-            {config.jobs.map((job) => {
-              const isRunning = runningId === job.id || (run.state === 'running' && run.jobName === job.name)
-              return (
-                <div key={job.id} className="flex items-center justify-between rounded-2xl border border-edge bg-panel p-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isRunning ? DOT.running : job.enabled ? 'bg-slate-500' : 'bg-slate-700'}`} />
-                      <span className="truncate font-semibold">{job.name}</span>
-                      {!job.enabled && <span className="rounded bg-slate-700/50 px-1.5 text-xs text-slate-400">paused</span>}
-                    </div>
-                    <div className="mt-1 truncate font-mono text-xs text-slate-400">{job.source} → {job.destination}</div>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <button className="btn-ghost" disabled={isRunning} onClick={() => runJob(job)}>{isRunning ? 'Running…' : 'Run now'}</button>
-                    <button className="btn-ghost" onClick={() => setEditing(job)}>Edit</button>
-                    <button className="btn-ghost text-red-400" onClick={() => deleteJob(job)}>Delete</button>
-                  </div>
-                </div>
-              )
-            })}
+            {config.jobs.map((job) => (
+              <JobCard
+                key={job.id}
+                job={job}
+                isRunning={runningId === job.id || (run.state === 'running' && run.jobName === job.name)}
+                onRun={() => runJob(job)}
+                onEdit={() => setEditing(job)}
+                onDelete={() => deleteJob(job)}
+              />
+            ))}
           </div>
         )}
 

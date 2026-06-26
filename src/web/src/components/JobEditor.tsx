@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { toggleId } from '../lib/forms'
 import type { FileExclusionSet, FolderExclusionSet, Job } from '../types'
 
 interface Props {
@@ -9,9 +10,6 @@ interface Props {
   onSaved: () => void
   onCancel: () => void
 }
-
-const toggle = (list: string[], id: string): string[] =>
-  list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
 
 export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel }: Props) {
   const [form, setForm] = useState<Job>(job)
@@ -66,14 +64,14 @@ export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Picker label="Folder exclusion sets" empty="No folder sets yet">
             {folderSets.map((s) => (
-              <Chip key={s.id} checked={form.folderSetIds.includes(s.id)} onClick={() => set('folderSetIds', toggle(form.folderSetIds, s.id))}>
+              <Chip key={s.id} checked={form.folderSetIds.includes(s.id)} onClick={() => set('folderSetIds', toggleId(form.folderSetIds, s.id))}>
                 {s.name}
               </Chip>
             ))}
           </Picker>
           <Picker label="File exclusion sets" empty="No file sets yet">
             {fileSets.map((s) => (
-              <Chip key={s.id} checked={form.fileSetIds.includes(s.id)} onClick={() => set('fileSetIds', toggle(form.fileSetIds, s.id))}>
+              <Chip key={s.id} checked={form.fileSetIds.includes(s.id)} onClick={() => set('fileSetIds', toggleId(form.fileSetIds, s.id))}>
                 {s.name}
               </Chip>
             ))}

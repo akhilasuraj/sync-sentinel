@@ -1,25 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import * as signalR from '@microsoft/signalr'
+import { IDLE, started, logged, finished, type RunState } from './lib/runState'
 
-export type RunState = 'idle' | 'running' | 'Success' | 'Warning' | 'Error'
-
-export interface RunInfo {
-  state: RunState
-  jobName: string | null
-  exitCode: number | null
-  lines: string[]
-}
-
-const IDLE: RunInfo = { state: 'idle', jobName: null, exitCode: null, lines: [] }
+export type { RunState, RunInfo } from './lib/runState'
 
 /**
- * Subscribes to the status hub and tracks the live run: runStarted resets the
- * panel, log appends lines, runFinished settles the status. onFinished fires so
- * callers can clear per-job UI (e.g. the running highlight).
+ * Subscribes to the status hub and tracks the live run via the runState
+ * transitions: runStarted resets, log appends, runFinished settles. onFinished
+ * fires so callers can clear per-job UI (e.g. the running highlight).
  */
 export function useHub(onFinished?: () => void) {
   const [connected, setConnected] = useState(false)
-  const [run, setRun] = useState<RunInfo>(IDLE)
+  const [run, setRun] = useState(IDLE)
   const finishedRef = useRef(onFinished)
   finishedRef.current = onFinished
 
@@ -29,14 +21,10 @@ export function useHub(onFinished?: () => void) {
       .withAutomaticReconnect()
       .build()
 
-    connection.on('runStarted', (jobName: string) =>
-      setRun({ state: 'running', jobName, exitCode: null, lines: [] }),
-    )
-    connection.on('log', (line: string) =>
-      setRun((r) => ({ ...r, lines: [...r.lines, line] })),
-    )
+    connection.on('runStarted', (jobName: string) => setRun(started(jobName)))
+    connection.on('log', (line: string) => setRun((r) => logged(r, line)))
     connection.on('runFinished', (status: RunState, exitCode: number) => {
-      setRun((r) => ({ ...r, state: status, exitCode }))
+      setRun((r) => finished(r, status, exitCode))
       finishedRef.current?.()
     })
 
