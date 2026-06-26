@@ -9,5 +9,13 @@ export default defineConfig({
   build: {
     outDir: '../SyncSentinel/wwwroot',
     emptyOutDir: true,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // @microsoft/signalr ships /*#__PURE__*/ comments in positions Rolldown
+        // can't use — harmless dependency noise, not our code.
+        if (warning.code === 'INVALID_ANNOTATION' || warning.message?.includes('__PURE__')) return
+        warn(warning)
+      },
+    },
   },
 })

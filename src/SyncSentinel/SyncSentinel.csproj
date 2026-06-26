@@ -15,6 +15,11 @@
          here, so normal build/test stay RID-agnostic. See README "Packaging". -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- WebView2 ships a WPF wrapper that drags WindowsBase 5.0.0.0; we use only
+         the WinForms wrapper, so the unresolved conflict (4.0.0.0 is chosen and
+         works) is cosmetic. Demote it to keep the build log clean. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <!-- ASP.NET Core (Kestrel, SignalR, static files) hosted in-process -->

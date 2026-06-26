@@ -29,7 +29,7 @@ public class HeartbeatHubTests
         var winner = await Task.WhenAny(tick.Task, Task.Delay(TimeSpan.FromSeconds(2)));
 
         Assert.True(winner == tick.Task, "expected a 'tick' from the heartbeat within 2s");
-        Assert.True(tick.Task.Result >= 1);
+        Assert.True(await tick.Task >= 1);
 
         await connection.DisposeAsync();
     }

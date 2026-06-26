@@ -51,7 +51,7 @@ public sealed class RunEndpointTests : IDisposable
 
         var winner = await Task.WhenAny(finished.Task, Task.Delay(TimeSpan.FromSeconds(10)));
         Assert.True(winner == finished.Task, "expected a runFinished broadcast within 10s");
-        Assert.Equal("Success", finished.Task.Result);
+        Assert.Equal("Success", await finished.Task);
         Assert.True(File.Exists(Path.Combine(dst, "a.txt")), "the job should have mirrored a.txt");
 
         await connection.DisposeAsync();
