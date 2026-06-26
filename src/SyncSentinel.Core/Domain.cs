@@ -7,7 +7,7 @@ namespace SyncSentinel.Core;
 /// <summary>A named, reusable list of directory names to exclude (robocopy /XD).</summary>
 public sealed record FolderExclusionSet
 {
-    public required string Id { get; init; }
+    public string Id { get; init; } = ""; // server-assigned on create
     public required string Name { get; init; }
     public IReadOnlyList<string> Folders { get; init; } = [];
 }
@@ -15,7 +15,7 @@ public sealed record FolderExclusionSet
 /// <summary>A named, reusable list of file patterns to exclude (robocopy /XF).</summary>
 public sealed record FileExclusionSet
 {
-    public required string Id { get; init; }
+    public string Id { get; init; } = ""; // server-assigned on create
     public required string Name { get; init; }
     public IReadOnlyList<string> Patterns { get; init; } = [];
 }
@@ -26,7 +26,7 @@ public sealed record FileExclusionSet
 /// </summary>
 public sealed record Job
 {
-    public required string Id { get; init; }
+    public string Id { get; init; } = ""; // server-assigned on create
     public required string Name { get; init; }
     public required string Source { get; init; }
     public required string Destination { get; init; }

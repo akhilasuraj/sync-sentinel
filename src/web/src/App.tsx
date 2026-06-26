@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
-import * as signalR from '@microsoft/signalr'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { api } from './api'
+import { useHub, type RunState } from './useHub'
+import { blankJob, type Job, type SyncSentinelConfig } from './types'
+import JobEditor from './components/JobEditor'
+import SetsTab from './components/SetsTab'
+import SettingsTab from './components/SettingsTab'
 
-type RunState = 'idle' | 'running' | 'Success' | 'Warning' | 'Error'
+type Tab = 'jobs' | 'sets' | 'settings'
 
-const STATUS_LABEL: Record<RunState, string> = {
-  idle: 'Idle',
-  running: 'Running…',
-  Success: 'Success',
-  Warning: 'Warning',
-  Error: 'Error',
-}
-
-const DOT_COLOR: Record<RunState, string> = {
+const DOT: Record<RunState, string> = {
   idle: 'bg-slate-500',
   running: 'bg-amber-400 animate-pulse',
   Success: 'bg-green-500',
@@ -20,102 +17,112 @@ const DOT_COLOR: Record<RunState, string> = {
 }
 
 export default function App() {
-  const [hubReady, setHubReady] = useState(false)
-  const [state, setState] = useState<RunState>('idle')
-  const [jobName, setJobName] = useState<string | null>(null)
-  const [exitCode, setExitCode] = useState<number | null>(null)
-  const [lines, setLines] = useState<string[]>([])
-  const [busy, setBusy] = useState(false)
+  const [config, setConfig] = useState<SyncSentinelConfig | null>(null)
+  const [tab, setTab] = useState<Tab>('jobs')
+  const [editing, setEditing] = useState<Job | null>(null)
+  const [runningId, setRunningId] = useState<string | null>(null)
   const logRef = useRef<HTMLPreElement>(null)
 
-  useEffect(() => {
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/status')
-      .withAutomaticReconnect()
-      .build()
+  const { connected, run } = useHub(() => setRunningId(null))
+  const reload = useCallback(() => api.getConfig().then(setConfig), [])
+  useEffect(() => void reload(), [reload])
 
-    connection.on('runStarted', (name: string) => {
-      setJobName(name)
-      setExitCode(null)
-      setLines([])
-      setState('running')
-    })
-    connection.on('log', (line: string) => {
-      setLines((prev) => [...prev, line])
-    })
-    connection.on('runFinished', (status: RunState, code: number) => {
-      setState(status)
-      setExitCode(code)
-      setBusy(false)
-    })
-
-    connection
-      .start()
-      .then(() => setHubReady(true))
-      .catch(() => setHubReady(false))
-
-    return () => void connection.stop()
-  }, [])
-
-  // Keep the log scrolled to the newest line.
   useEffect(() => {
     const el = logRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [lines])
+  }, [run.lines])
 
-  async function runNow() {
-    setBusy(true)
-    const res = await fetch('/api/run', { method: 'POST' })
-    if (!res.ok) setBusy(false) // 409 = a run is already in progress
+  async function runJob(job: Job) {
+    setRunningId(job.id)
+    const res = await api.runJob(job.id)
+    if (!res.ok) setRunningId(null) // 409 already running, etc.
   }
 
-  const running = state === 'running'
+  async function deleteJob(job: Job) {
+    await api.deleteJob(job.id)
+    reload()
+  }
+
+  if (!config) return <div className="grid h-screen place-items-center text-slate-500">Loading…</div>
 
   return (
-    <main className="mx-auto flex h-screen max-w-3xl flex-col gap-4 p-6">
+    <div className="mx-auto flex h-screen max-w-4xl flex-col gap-4 p-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">SyncSentinel</h1>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs ${
-            hubReady ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
-          }`}
-        >
-          {hubReady ? 'connected' : 'disconnected'}
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold tracking-tight">SyncSentinel</h1>
+          <nav className="flex gap-1 rounded-lg bg-panel p-1">
+            {(['jobs', 'sets', 'settings'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`rounded-md px-3 py-1 text-sm capitalize transition ${tab === t ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                {t === 'sets' ? 'Exclusion sets' : t}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs ${connected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+          {connected ? 'connected' : 'disconnected'}
         </span>
       </header>
 
-      <section className="rounded-2xl border border-edge bg-panel p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="font-semibold">{jobName ?? 'Demo backup job'}</div>
-            <div className="mt-0.5 text-sm text-slate-400">robocopy mirror · excludes bin</div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {tab === 'jobs' && (
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <button className="btn" onClick={() => setEditing(blankJob())}>+ New job</button>
+            </div>
+            {config.jobs.length === 0 && <p className="text-sm text-slate-500">No jobs yet — add one.</p>}
+            {config.jobs.map((job) => {
+              const isRunning = runningId === job.id || (run.state === 'running' && run.jobName === job.name)
+              return (
+                <div key={job.id} className="flex items-center justify-between rounded-2xl border border-edge bg-panel p-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${isRunning ? DOT.running : job.enabled ? 'bg-slate-500' : 'bg-slate-700'}`} />
+                      <span className="truncate font-semibold">{job.name}</span>
+                      {!job.enabled && <span className="rounded bg-slate-700/50 px-1.5 text-xs text-slate-400">paused</span>}
+                    </div>
+                    <div className="mt-1 truncate font-mono text-xs text-slate-400">{job.source} → {job.destination}</div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button className="btn-ghost" disabled={isRunning} onClick={() => runJob(job)}>{isRunning ? 'Running…' : 'Run now'}</button>
+                    <button className="btn-ghost" onClick={() => setEditing(job)}>Edit</button>
+                    <button className="btn-ghost text-red-400" onClick={() => deleteJob(job)}>Delete</button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <button
-            onClick={runNow}
-            disabled={busy || running || !hubReady}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-default disabled:bg-slate-700 disabled:text-slate-500"
-          >
-            {running ? 'Running…' : 'Run now'}
-          </button>
-        </div>
-        <div className="mt-4 flex items-center gap-2.5 border-t border-edge pt-4">
-          <span className={`h-2.5 w-2.5 rounded-full ${DOT_COLOR[state]}`} />
-          <span className="font-semibold">{STATUS_LABEL[state]}</span>
-          {exitCode != null && <span className="ml-auto text-xs tabular-nums text-slate-400">exit {exitCode}</span>}
-        </div>
-      </section>
+        )}
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-edge bg-panel-2">
-        <div className="border-b border-edge bg-slate-800/30 px-4 py-2.5 text-xs text-slate-400">
-          Live log{lines.length > 0 && <span> · {lines.length} lines</span>}
+        {tab === 'sets' && <SetsTab folderSets={config.folderSets} fileSets={config.fileSets} onChanged={reload} />}
+        {tab === 'settings' && <SettingsTab settings={config.settings} onSaved={reload} />}
+      </div>
+
+      {/* Live run panel */}
+      <section className="flex h-56 shrink-0 flex-col overflow-hidden rounded-2xl border border-edge bg-panel-2">
+        <div className="flex items-center gap-2 border-b border-edge bg-slate-800/30 px-4 py-2.5 text-xs text-slate-400">
+          <span className={`h-2 w-2 rounded-full ${DOT[run.state]}`} />
+          <span className="font-semibold text-slate-300">{run.jobName ?? 'No run yet'}</span>
+          <span>· {run.state}</span>
+          {run.exitCode != null && <span className="ml-auto tabular-nums">exit {run.exitCode}</span>}
         </div>
-        <pre
-          ref={logRef}
-          className="m-0 flex-1 overflow-auto px-4 py-3.5 font-mono text-[12.5px] leading-relaxed break-words whitespace-pre-wrap"
-        >
-          {lines.length === 0 ? <span className="text-slate-600">No output yet — press Run now.</span> : lines.join('\n')}
+        <pre ref={logRef} className="m-0 flex-1 overflow-auto px-4 py-3 font-mono text-[12px] leading-relaxed break-words whitespace-pre-wrap">
+          {run.lines.length === 0 ? <span className="text-slate-600">Run a job to see live output.</span> : run.lines.join('\n')}
         </pre>
       </section>
-    </main>
+
+      {editing && (
+        <JobEditor
+          job={editing}
+          folderSets={config.folderSets}
+          fileSets={config.fileSets}
+          onSaved={() => { setEditing(null); reload() }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+    </div>
   )
 }

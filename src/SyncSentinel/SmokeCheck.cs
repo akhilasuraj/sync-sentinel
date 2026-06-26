@@ -1,5 +1,7 @@
+using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 
 namespace SyncSentinel;
 
@@ -54,9 +56,40 @@ internal static class SmokeCheck
 
         try
         {
-            var post = await http.PostAsync("/api/run", null);
-            // Run executes on a background task; poll the demo destination briefly.
-            var dst = Path.Combine(Path.GetTempPath(), "SyncSentinelDemo", "backup");
+            var cfg = await http.GetStringAsync("/api/config");
+            var configOk = cfg.Contains("DeveloperDefaults");
+            ok &= configOk;
+            Report($"[config] {(configOk ? "PASS" : "FAIL")}  seeded ({cfg.Length} bytes)");
+        }
+        catch (Exception ex)
+        {
+            ok = false;
+            Report($"[config] FAIL  {ex.Message}");
+        }
+
+        try
+        {
+            // Create a real job (source under %TEMP%, excluding bin via the seeded
+            // DeveloperDefaults set), run it by id, and confirm the mirror.
+            var root = Path.Combine(Path.GetTempPath(), "SyncSentinelSmokeRun");
+            var src = Path.Combine(root, "src");
+            var dst = Path.Combine(root, "dst");
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            Directory.CreateDirectory(Path.Combine(src, "bin"));
+            File.WriteAllText(Path.Combine(src, "readme.txt"), "smoke");
+            File.WriteAllText(Path.Combine(src, "bin", "ignored.dll"), "x");
+
+            var create = await http.PostAsJsonAsync("/api/jobs", new
+            {
+                name = "Smoke",
+                source = src,
+                destination = dst,
+                folderSetIds = new[] { "developer-defaults" },
+            });
+            using var doc = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+            var jobId = doc.RootElement.GetProperty("id").GetString();
+
+            var post = await http.PostAsync($"/api/jobs/{jobId}/run", null);
             var mirrored = false;
             for (var i = 0; i < 50 && !mirrored; i++)
             {
@@ -64,9 +97,9 @@ internal static class SmokeCheck
                 else await Task.Delay(200);
             }
             var binExcluded = !Directory.Exists(Path.Combine(dst, "bin"));
-            var runOk = post.IsSuccessStatusCode && mirrored && binExcluded;
+            var runOk = create.IsSuccessStatusCode && post.IsSuccessStatusCode && mirrored && binExcluded;
             ok &= runOk;
-            Report($"[run]    {(runOk ? "PASS" : "FAIL")}  posted={post.StatusCode} mirrored={mirrored} binExcluded={binExcluded}");
+            Report($"[run]    {(runOk ? "PASS" : "FAIL")}  job={jobId} posted={post.StatusCode} mirrored={mirrored} binExcluded={binExcluded}");
         }
         catch (Exception ex)
         {

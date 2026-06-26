@@ -19,3 +19,16 @@ body {
   color: #e6edf3;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
+
+/* Shared control styles, composed from Tailwind utilities. */
+@layer components {
+  .btn {
+    @apply rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-default disabled:bg-slate-700 disabled:text-slate-500;
+  }
+  .btn-ghost {
+    @apply rounded-lg border border-edge bg-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700/40 disabled:cursor-default disabled:text-slate-600;
+  }
+  .field {
+    @apply w-full rounded-lg border border-edge bg-panel-2 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500;
+  }
+}
