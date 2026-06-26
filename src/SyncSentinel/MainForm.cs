@@ -4,17 +4,21 @@ namespace SyncSentinel;
 
 /// <summary>
 /// The app window: a full-bleed WebView2 pointed at the loopback UI, plus a
-/// system-tray icon. Closing the window hides to tray (scheduling keeps
-/// running); real exit is via the tray menu. (Single-instance, autostart and
-/// richer tray come in Phase 5.)
+/// system-tray icon. Starts hidden under --tray (login autostart). Closing the
+/// window hides to tray (scheduling keeps running); real exit is via the tray
+/// menu. <see cref="ShowExternally"/> surfaces the window when a second instance
+/// is launched.
 /// </summary>
 internal sealed class MainForm : Form
 {
     private readonly NotifyIcon _tray;
     private bool _exitRequested;
+    private bool _allowVisible;
 
-    public MainForm(string url)
+    public MainForm(string url, bool startHidden)
     {
+        _allowVisible = !startHidden;
+
         Text = "SyncSentinel";
         Width = 1000;
         Height = 700;
@@ -34,6 +38,12 @@ internal sealed class MainForm : Form
         _tray.DoubleClick += (_, _) => ShowWindow();
     }
 
+    // Keeps the window hidden on startup under --tray until something shows it.
+    protected override void SetVisibleCore(bool value) => base.SetVisibleCore(value && _allowVisible);
+
+    /// <summary>Surface the window (called when a second instance is launched).</summary>
+    public void ShowExternally() => ShowWindow();
+
     private ContextMenuStrip BuildTrayMenu()
     {
         var menu = new ContextMenuStrip();
@@ -49,6 +59,7 @@ internal sealed class MainForm : Form
 
     private void ShowWindow()
     {
+        _allowVisible = true;
         Show();
         WindowState = FormWindowState.Normal;
         Activate();

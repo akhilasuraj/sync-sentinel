@@ -8,6 +8,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SyncSentinel</RootNamespace>
     <AssemblyName>SyncSentinel</AssemblyName>
+
+    <!-- Single-file publish hints (effective only on `dotnet publish`): bundle the
+         native WebView2 loader + SQLite into the one exe and compress it. The RID
+         and self-contained flag are passed on the publish command, not pinned
+         here, so normal build/test stay RID-agnostic. See README "Packaging". -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <!-- ASP.NET Core (Kestrel, SignalR, static files) hosted in-process -->

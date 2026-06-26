@@ -57,6 +57,17 @@ stack over Electron / Tauri / WPF.
   `PumpAsync()` drains one-at-a-time through the executor and records each finish.
   Clock + executor injected for deterministic tests. `QueuePumpService` drains
   continuously (all hosts); `SchedulerTickService` auto-schedules (shell only).
+- **`RobocopySummary.Parse` / `Retention.SelectExpired`** — pure: file counts from the
+  robocopy summary; which runs to prune (per-job count cap OR age cap).
+- **`RunHistoryStore`** (SQLite) + **`RunRecorder`** — store run rows; the recorder
+  writes the per-job `.log`, parses counts, records, and prunes per retention.
+- **`StoragePaths`** — single source for the data root (`%APPDATA%\SyncSentinel`);
+  ConfigStore / RunHistoryStore / RunRecorder derive from it.
+- **`AutostartManager`** — toggles the per-user `HKCU\…\Run` entry (key path/value
+  injectable for tests). The shell reconciles it with the saved setting at startup.
+
+The shell (`Program.cs`) also enforces a single instance (named mutex; a second
+launch signals the first to surface its window) and starts hidden under `--tray`.
 
 ## Build & run
 
@@ -71,8 +82,15 @@ dotnet build
 # Run the app (tray + WebView2)
 dotnet run --project src/SyncSentinel
 
-# Headless host smoke check (real Kestrel socket + static serving)
+# Headless host smoke check (real Kestrel: ping, static, config, run -> recorded)
 dotnet run --project src/SyncSentinel -- --smoke
+
+# Web tests (Vitest)
+npm --prefix src/web test
+
+# Package a single self-contained exe (~62MB) -> publish/SyncSentinel.exe
+npm --prefix src/web run build
+dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
 ```
 
 ## Development workflow
