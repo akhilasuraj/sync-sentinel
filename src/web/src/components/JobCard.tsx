@@ -18,7 +18,11 @@ export default function JobCard({ job, isRunning, onRun, onEdit, onDelete }: Pro
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
           <span className="truncate font-semibold">{job.name}</span>
-          {!job.enabled && <span className="rounded bg-slate-700/50 px-1.5 text-xs text-slate-400">paused</span>}
+          {job.enabled ? (
+            <span className="rounded bg-slate-700/50 px-1.5 text-xs text-slate-400">every {job.intervalMinutes}m</span>
+          ) : (
+            <span className="rounded bg-slate-700/50 px-1.5 text-xs text-slate-400">paused</span>
+          )}
         </div>
         <div className="mt-1 truncate font-mono text-xs text-slate-400">{job.source} → {job.destination}</div>
       </div>

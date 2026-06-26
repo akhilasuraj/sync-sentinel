@@ -26,6 +26,11 @@ describe('JobCard', () => {
     expect(screen.getByText('paused')).toBeInTheDocument()
   })
 
+  it('shows the schedule interval for an enabled job', () => {
+    render(<JobCard job={job({ enabled: true, intervalMinutes: 30 })} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} />)
+    expect(screen.getByText(/every 30m/i)).toBeInTheDocument()
+  })
+
   it('disables Run and shows Running… while running', () => {
     render(<JobCard job={job({ enabled: true })} isRunning onRun={noop} onEdit={noop} onDelete={noop} />)
     expect(screen.getByRole('button', { name: 'Running…' })).toBeDisabled()

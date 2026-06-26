@@ -42,6 +42,9 @@ internal static class Program
             Directory.Delete(configDir, recursive: true); // fresh seed each smoke run
         }
         builder.Services.AddSingleton(new ConfigStore(configDir));
+        // Auto-scheduling runs only in the real app (tests drive the scheduler
+        // directly), so register the periodic tick here, not in ApiHost.
+        builder.Services.AddHostedService<SchedulerTickService>();
 
         var app = builder.Build();
         app.UseDefaultFiles();

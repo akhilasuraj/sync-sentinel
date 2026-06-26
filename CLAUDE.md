@@ -31,16 +31,32 @@ stack over Electron / Tauri / WPF.
 - **`ApiHost`** — the shared wiring seam: `ConfigureServices` + `MapEndpoints`. Used
   by both the shell (real Kestrel) and the tests (in-memory TestServer) so both
   exercise identical endpoints/hub.
-- **`BackupJob`** — source → destination + flags + exclude folders/files (see CONTEXT.md).
-- **`RobocopyCommand.Build`** — composes the robocopy arg token list (source, dest,
-  flags, `/XD`, `/XF`). Pure.
-- **`RobocopyResult.FromExitCode`** — maps robocopy's bitmapped exit code to
+- **Domain** (`Domain.cs`) — `Job` (persisted: references exclusion sets by id,
+  optional flags override, interval, enabled), `FolderExclusionSet`,
+  `FileExclusionSet`, `GlobalSettings`, and the `SyncSentinelConfig` aggregate.
+- **`BackupJob`** — the *resolved/effective* run inputs (flat source → destination +
+  flags + exclude folders/files) the robocopy layer consumes.
+- **`ConfigStore`** — load/save `config.json` under `%APPDATA%\SyncSentinel`; first
+  run writes the `DefaultConfig` seed.
+- **`ConfigService`** — in-memory config owner backed by `ConfigStore`; persisted CRUD
+  for jobs + sets, settings updates, and `ResolveJob(id)`.
+- **`JobResolver.Resolve`** — flattens a `Job` into a `BackupJob`: union of attached
+  folder/file sets → `/XD` / `/XF`, `flagsOverride ?? defaultFlags`. Pure.
+- **`RobocopyCommand.Build`** — composes the robocopy arg token list. Pure.
+- **`RobocopyResult.FromExitCode`** — maps the bitmapped exit code to
   Success / Warning (bit 8) / Error (bit 16). Pure.
 - **`RobocopyRunner`** — spawns robocopy, streams each stdout/stderr line to a
   callback, returns the parsed result.
-- **`JobRunCoordinator`** — runs a job on a background task, broadcasting
-  `runStarted` / `log` / `runFinished` over the `StatusHub`. One run at a time
-  (Phase 3 adds the full scheduler + FIFO queue).
+- **`JobRunCoordinator.RunAsync`** — runs one resolved job to completion, broadcasting
+  `runStarted` / `log` / `runFinished` over the `StatusHub`.
+- **`Schedule.IsDue`** — pure due-policy: interval anchored to last finish; never-run
+  ⇒ due (first run / catch-up); disabled ⇒ never.
+- **`RunQueue`** — global FIFO with one running slot; enqueue de-dups (no self-overlap);
+  front-enqueue jumps the queue.
+- **`Scheduler`** — composes the above: `Tick()` enqueues due jobs, `RunNow(id)` jumps,
+  `PumpAsync()` drains one-at-a-time through the executor and records each finish.
+  Clock + executor injected for deterministic tests. `QueuePumpService` drains
+  continuously (all hosts); `SchedulerTickService` auto-schedules (shell only).
 
 ## Build & run
 

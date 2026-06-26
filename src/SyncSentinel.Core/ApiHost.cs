@@ -21,6 +21,11 @@ public static class ApiHost
         services.AddSingleton<ConfigService>();
         // ConfigService depends on a ConfigStore — the shell registers one at
         // %APPDATA%; tests register one at a scratch dir.
+        services.AddSingleton<RunQueue>();
+        services.AddSingleton<Scheduler>();
+        services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
+        // SchedulerTickService (auto-schedule due jobs) is registered by the shell
+        // only, so tests don't get surprise scheduled runs.
     }
 
     /// <summary>Map SyncSentinel's endpoints (REST + SignalR) onto the app.</summary>
@@ -37,14 +42,8 @@ public static class ApiHost
             cfg.UpdateJob(job with { Id = id }) ? Results.NoContent() : Results.NotFound());
         app.MapDelete("/api/jobs/{id}", (string id, ConfigService cfg) =>
             cfg.DeleteJob(id) ? Results.NoContent() : Results.NotFound());
-        app.MapPost("/api/jobs/{id}/run", (string id, ConfigService cfg, JobRunCoordinator coordinator) =>
-        {
-            var resolved = cfg.ResolveJob(id);
-            if (resolved is null) return Results.NotFound();
-            return coordinator.TryStart(resolved)
-                ? Results.Accepted()
-                : Results.Conflict(new { message = "a run is already in progress" });
-        });
+        app.MapPost("/api/jobs/{id}/run", (string id, Scheduler scheduler) =>
+            scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound());
 
         // ── Effective-command preview (works for unsaved edits) ───────────────
         app.MapPost("/api/preview", (Job job, ConfigService cfg) =>
