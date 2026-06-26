@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on rapid pushes to the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest # robocopy / WinForms / WebView2 / win-x64 are Windows-only
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - name: Web tests (Vitest)
+        working-directory: src/web
+        run: npm test
+
+      - name: Build web (typecheck + bundle into wwwroot)
+        working-directory: src/web
+        run: npm run build
+
+      - name: Build solution
+        run: dotnet build SyncSentinel.slnx -c Release
+
+      - name: .NET tests
+        run: dotnet test SyncSentinel.slnx -c Release --no-build

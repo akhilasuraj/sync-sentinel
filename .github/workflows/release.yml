@@ -1,0 +1,51 @@
+name: Release
+
+# Push a version tag (e.g. v1.0.0) to build the single-file exe and publish a
+# GitHub release. Main pushes themselves only run CI.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the release + upload the asset
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: src/web
+        run: npm ci
+
+      - name: Web tests (Vitest)
+        working-directory: src/web
+        run: npm test
+
+      - name: Build web (typecheck + bundle into wwwroot)
+        working-directory: src/web
+        run: npm run build
+
+      - name: .NET tests (gate the release)
+        run: dotnet test SyncSentinel.slnx -c Release
+
+      - name: Publish single-file exe
+        run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "publish/SyncSentinel.exe" --title "SyncSentinel ${{ github.ref_name }}" --generate-notes

@@ -1,5 +1,7 @@
 # SyncSentinel
 
+[![CI](https://github.com/akhilasuraj/sync-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/akhilasuraj/sync-sentinel/actions/workflows/ci.yml)
+
 A Windows tray app that keeps your dev folders mirrored to OneDrive-synced
 destinations on a per-job schedule — robocopy under the hood, an elegant UI on top.
 
@@ -72,6 +74,17 @@ Autostart (a per-user `HKCU\…\Run` entry launching `SyncSentinel.exe --tray`) 
 toggled by the **Start automatically on login** setting and reconciled at startup.
 Closing the window hides to the tray; exit via the tray menu. A second launch
 surfaces the running instance rather than starting a new one.
+
+## CI / releases
+
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on PRs:
+  installs the web deps, runs Vitest, builds the UI + solution, and runs the .NET tests.
+- **Releases** (`.github/workflows/release.yml`) run when a version tag is pushed —
+  they re-run the tests, publish the single-file exe, and attach it to a GitHub release:
+
+  ```sh
+  git tag v1.0.0 && git push origin v1.0.0
+  ```
 
 ## License
 
