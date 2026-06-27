@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cardState, formatCountdown, type JobStatus } from './jobStatus'
+import { cardState, clockCountdown, formatCountdown, type JobStatus } from './jobStatus'
 
 describe('formatCountdown', () => {
   const now = Date.parse('2026-06-27T12:00:00Z')
@@ -22,6 +22,22 @@ describe('formatCountdown', () => {
 
   it('counts down in days and hours past a day', () => {
     expect(formatCountdown('2026-06-29T15:00:00Z', now)).toBe('next in 2d 3h')
+  })
+})
+
+describe('clockCountdown', () => {
+  const now = Date.parse('2026-06-27T12:00:00Z')
+
+  it('shows MM:SS under an hour', () => {
+    expect(clockCountdown('2026-06-27T12:04:12Z', now)).toBe('04:12')
+  })
+
+  it('shows H:MM:SS at or past an hour', () => {
+    expect(clockCountdown('2026-06-27T13:04:05Z', now)).toBe('1:04:05')
+  })
+
+  it('shows "Due" once the run is due', () => {
+    expect(clockCountdown('2026-06-27T11:59:00Z', now)).toBe('Due')
   })
 })
 

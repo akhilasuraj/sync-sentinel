@@ -134,7 +134,7 @@ function Chip({ checked, onClick, children }: { checked: boolean; onClick: () =>
     <button
       onClick={onClick}
       className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-        checked ? 'bg-blue-600 text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+        checked ? 'bg-sentinel text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
       }`}
     >
       {children}

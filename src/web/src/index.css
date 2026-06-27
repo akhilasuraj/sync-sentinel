@@ -1,12 +1,21 @@
 @import 'tailwindcss';
 
-/* Dark, app-like surface. Tailwind v4 reads the system color-scheme; we force
-   dark since this is a tray app with a fixed dark theme. */
+/* ── Sentinel Watch ───────────────────────────────────────────────────────
+   A nocturnal ops console. Cool ink surfaces, a single periwinkle "sentinel"
+   accent reserved for what's active, and a Cascadia monospace readout face for
+   everything the machine reports (paths, flags, counts, the watch countdown).
+   Fixed dark — this is a tray app, not a themeable site. */
 @theme {
-  --color-surface: #0b0f17;
-  --color-panel: #131a26;
-  --color-panel-2: #0e1521;
-  --color-edge: #1f2a3a;
+  --color-surface: #0c0e14; /* base */
+  --color-panel: #141824; /* raised: cards, panels */
+  --color-panel-2: #090b11; /* sunken: insets, logs, the nav rail */
+  --color-edge: #232a3a; /* hairline borders */
+
+  --color-sentinel: #6e7bf2; /* brand accent — active nav, primary actions */
+  --color-sentinel-strong: #5a68e8; /* accent hover */
+
+  /* The readout face: machine data wears monospace, chrome wears Segoe. */
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'SFMono-Regular', monospace;
 }
 
 html {
@@ -16,19 +25,31 @@ html {
 body {
   margin: 0;
   background: var(--color-surface);
-  color: #e6edf3;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #e7ecf3;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Shared control styles, composed from Tailwind utilities. */
 @layer components {
   .btn {
-    @apply rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-default disabled:bg-slate-700 disabled:text-slate-500;
+    @apply rounded-lg bg-sentinel px-4 py-2 text-sm font-semibold text-white transition hover:bg-sentinel-strong disabled:cursor-default disabled:bg-slate-700 disabled:text-slate-500;
   }
   .btn-ghost {
-    @apply rounded-lg border border-edge bg-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700/40 disabled:cursor-default disabled:text-slate-600;
+    @apply rounded-lg border border-edge bg-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/5 disabled:cursor-default disabled:text-slate-600;
   }
   .field {
-    @apply w-full rounded-lg border border-edge bg-panel-2 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500;
+    @apply w-full rounded-lg border border-edge bg-panel-2 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sentinel;
+  }
+  /* Left-rail navigation entry. */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200;
+  }
+  .nav-item-active {
+    @apply bg-sentinel/10 text-slate-100;
+  }
+  /* An eyebrow label above a section — small, spaced, mono. */
+  .eyebrow {
+    @apply font-mono text-[11px] font-semibold tracking-[0.18em] text-slate-500 uppercase;
   }
 }

@@ -45,7 +45,7 @@ export default function JobHistory({ jobId, jobName, onClose }: Props) {
               key={run.id}
               onClick={() => openLog(run)}
               className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
-                selected === run.id ? 'border-blue-500 bg-panel-2' : 'border-edge bg-panel-2 hover:border-slate-600'
+                selected === run.id ? 'border-sentinel bg-panel-2' : 'border-edge bg-panel-2 hover:border-slate-600'
               }`}
             >
               <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDotClass(run.status)}`} />
