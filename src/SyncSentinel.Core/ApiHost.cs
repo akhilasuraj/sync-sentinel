@@ -119,7 +119,11 @@ public static class ApiHost
                 {
                     jobId = j.Id,
                     lastStatus = last?.Status,
-                    nextDueUtc = j.Enabled ? Schedule.NextDue(j, last?.FinishedUtc) : (DateTimeOffset?)null,
+                    // A never-run enabled job is due now — emit a real timestamp,
+                    // not Schedule.NextDue's year-0001 (MinValue + interval).
+                    nextDueUtc = !j.Enabled ? (DateTimeOffset?)null
+                        : last is null ? DateTimeOffset.UtcNow
+                        : Schedule.NextDue(j, last.FinishedUtc),
                     state = queue.Running == j.Id ? "Running"
                         : queue.Pending.Contains(j.Id) ? "Queued"
                         : "Idle",

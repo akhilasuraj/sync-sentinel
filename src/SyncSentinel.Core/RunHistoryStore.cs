@@ -110,11 +110,14 @@ public sealed class RunHistoryStore : IDisposable
     /// <summary>The newest runs across all jobs (for the dashboard activity feed).</summary>
     public IReadOnlyList<RunRecord> Recent(int limit = 10)
     {
+        // Clamp: SQLite treats LIMIT < 0 as "no limit", so a stray negative would
+        // dump the whole table; cap the upper end too.
+        var capped = Math.Clamp(limit, 1, 500);
         lock (_gate)
         {
             using var cmd = _conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM runs ORDER BY finishedUtc DESC LIMIT $limit;";
-            cmd.Parameters.AddWithValue("$limit", limit);
+            cmd.Parameters.AddWithValue("$limit", capped);
             return Read(cmd);
         }
     }

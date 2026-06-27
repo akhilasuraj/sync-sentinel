@@ -41,8 +41,9 @@ export default function JobDetails({ job, status, now, run, isRunning, onBack, o
   const effective: JobStatus = isRunning ? { ...(status ?? IDLE), state: 'Running' } : status ?? IDLE
   const { dot, label } = cardState(effective, job.enabled, now)
 
-  // The hub's current run is THIS job's (live, or just-finished with lines kept).
-  const live = run.jobId === job.id && run.lines.length > 0
+  // The hub's current run is THIS job's: show it while running (even before the
+  // first output line) or once it's finished with its lines still captured.
+  const live = run.jobId === job.id && (run.state === 'running' || run.lines.length > 0)
 
   function toggleLog(record: RunRecord) {
     if (openId === record.id) {

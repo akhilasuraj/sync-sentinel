@@ -66,6 +66,25 @@ public sealed class JobStatusEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Status_reports_due_now_for_an_enabled_job_that_never_ran()
+    {
+        await using var app = await TestApp.StartAsync(Path.Combine(_scratch, "config"));
+        var client = app.GetTestClient();
+        var create = await client.PostAsJsonAsync(
+            "/api/jobs", new { name = "scratch", source = @"C:\src", destination = @"C:\dst", enabled = true });
+        var job = await create.Content.ReadFromJsonAsync<CreatedJob>();
+        // No runs seeded — this job has never run.
+
+        var statuses = await client.GetFromJsonAsync<List<JobStatusDto>>("/api/jobs/status");
+
+        var status = Assert.Single(statuses!, s => s.JobId == job!.Id);
+        Assert.NotNull(status.NextDueUtc);
+        Assert.True(
+            status.NextDueUtc > DateTimeOffset.UtcNow.AddMinutes(-1),
+            "a never-run enabled job should be due ~now, not a year-0001 timestamp");
+    }
+
+    [Fact]
     public async Task Status_reports_running_for_the_job_in_the_run_slot()
     {
         await using var app = await TestApp.StartAsync(Path.Combine(_scratch, "config"));

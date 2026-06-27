@@ -77,6 +77,18 @@ public sealed class RunHistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Recent_clamps_a_nonsensical_negative_limit()
+    {
+        var t0 = new DateTimeOffset(2026, 6, 26, 12, 0, 0, TimeSpan.Zero);
+        _store.Add(Run("a", "j", t0));
+        _store.Add(Run("b", "j", t0.AddMinutes(1)));
+        _store.Add(Run("c", "j", t0.AddMinutes(2)));
+
+        // SQLite treats LIMIT < 0 as "no limit" — a negative value must not dump the table.
+        Assert.Single(_store.Recent(-1));
+    }
+
+    [Fact]
     public void ListByJob_only_returns_runs_for_that_job()
     {
         var t0 = new DateTimeOffset(2026, 6, 26, 12, 0, 0, TimeSpan.Zero);
