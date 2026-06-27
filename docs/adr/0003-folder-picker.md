@@ -32,9 +32,12 @@ forces a decision about *how* a sandboxed web UI obtains a real filesystem path.
     call it when the capability flag is false).
 - **Shell implementation.** Marshals to the WinForms UI thread
   (`BeginInvoke` + a `TaskCompletionSource` the awaiting request thread observes) and
-  shows the modern **`OpenFolderDialog`** (added in .NET 8, present in .NET 10), seeded
-  with `InitialDirectory` = the current field value when it exists, and a `Title`
-  ("Select source folder" / "Select destination folder"); one dialog at a time.
+  shows **`FolderBrowserDialog`** — the WinForms folder picker, which uses the modern
+  Vista `IFileDialog` under the hood on .NET Core 3.0+ (WinForms has no
+  `OpenFolderDialog`; that type is WPF/WinUI). Seeded with `InitialDirectory` = the
+  current field value when it exists, titled via `Description` + `UseDescriptionForTitle`
+  ("Select source folder" / "Select destination folder"), with `ShowNewFolderButton` so
+  a destination can be created.
 - **Fields stay editable.** Browse *augments* the text inputs; it does not replace
   them. Typing/pasting still works (power users, a not-yet-created destination, and the
   dev browser where no native dialog exists).

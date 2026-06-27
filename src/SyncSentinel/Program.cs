@@ -84,9 +84,14 @@ internal static class Program
         builder.Services.AddHostedService<SchedulerTickService>();
         // Override the no-op IAutostart with the registry-backed impl for real
         // runs only; --smoke keeps the no-op so it can never touch the Run key.
+        // Likewise the native folder picker — its UI context is wired once the
+        // MainForm exists (below); --smoke keeps the no-op (no window).
+        FolderPicker? folderPicker = null;
         if (!smoke)
         {
             builder.Services.AddSingleton<IAutostart>(new AutostartManager(Environment.ProcessPath!));
+            folderPicker = new FolderPicker();
+            builder.Services.AddSingleton<IFolderPicker>(folderPicker);
         }
 
         var app = builder.Build();
@@ -118,6 +123,10 @@ internal static class Program
 
         ApplicationConfiguration.Initialize();
         var form = new MainForm(url, startHidden: args.Contains("--tray"));
+
+        // The folder picker marshals its native dialog onto the window; the DI
+        // container was built before the form, so wire the UI context now.
+        folderPicker?.SetUiContext(form);
 
         // React to a second launch: --quit asks us to exit, otherwise surface the
         // window. (The installer/uninstaller use --quit to stop us cleanly before
