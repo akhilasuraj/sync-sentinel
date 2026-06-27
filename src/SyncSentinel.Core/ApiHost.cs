@@ -31,6 +31,8 @@ public static class ApiHost
         services.AddSingleton<Scheduler>();
         // Default no-op; the shell overrides with the registry-backed AutostartManager.
         services.AddSingleton<IAutostart, NoOpAutostart>();
+        // Default no-op; the shell overrides with the native-dialog FolderPicker.
+        services.AddSingleton<IFolderPicker, NoOpFolderPicker>();
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
         // SchedulerTickService (auto-schedule due jobs) is registered by the shell
         // only, so tests don't get surprise scheduled runs.
@@ -40,6 +42,26 @@ public static class ApiHost
     public static void MapEndpoints(WebApplication app)
     {
         app.MapGet("/api/ping", () => Results.Json(new { message = "pong" }));
+
+        // ── Capabilities (shell-only features the UI conditionally enables) ───────
+        app.MapGet("/api/capabilities", (IFolderPicker picker) =>
+            Results.Json(new { folderPicker = picker.Available }));
+
+        // ── Folder picker (native dialog via the shell seam) ──────────────────────
+        app.MapPost("/api/pick-folder", async (PickFolderRequest req, IFolderPicker picker) =>
+        {
+            if (!picker.Available)
+            {
+                return Results.StatusCode(StatusCodes.Status501NotImplemented);
+            }
+            var path = await picker.PickFolderAsync(req.InitialPath, req.Title);
+            return path is null ? Results.NoContent() : Results.Json(new { path });
+        });
+
+        // Existence check behind the editor's path hint. Folder-oriented, so a file
+        // path reports false; the source/destination interpretation is the UI's.
+        app.MapGet("/api/path-exists", (string path) =>
+            Results.Json(new { exists = Directory.Exists(path) }));
 
         // ── Config (whole document for the UI to render) ──────────────────────
         app.MapGet("/api/config", (ConfigService cfg) => Results.Json(cfg.Current));

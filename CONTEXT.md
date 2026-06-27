@@ -51,11 +51,17 @@ ubiquitous language — use these terms exactly in code, issues, and docs.
 - **Uninstall cleanup** — the app's own removal of its footprint, invoked by the
   uninstaller: the `HKCU\…\Run` **autostart** entry is always removed; the
   `%APPDATA%\SyncSentinel` data is removed only when the user confirms.
+- **Folder picker** — the native Windows folder-selection dialog offered as a Browse
+  affordance beside a job's source/destination, so paths can be browsed instead of
+  typed. Provided by the **tray shell** only; the fields stay editable everywhere
+  (typing/pasting always works, including in a plain dev browser).
 
 ## Decisions
 
 Architecture and the alternatives weighed are recorded in
 [`docs/adr/0001-architecture.md`](docs/adr/0001-architecture.md); the installer /
 uninstaller packaging decisions are in
-[`docs/adr/0002-installer-packaging.md`](docs/adr/0002-installer-packaging.md).
+[`docs/adr/0002-installer-packaging.md`](docs/adr/0002-installer-packaging.md); the
+folder-picker (native dialog via a shell seam) is in
+[`docs/adr/0003-folder-picker.md`](docs/adr/0003-folder-picker.md).
 Record new cross-cutting decisions as further ADRs under `docs/adr/`.
