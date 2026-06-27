@@ -3,6 +3,7 @@ import { api } from '../api'
 import { toggleId } from '../lib/forms'
 import type { FileExclusionSet, FolderExclusionSet, Job } from '../types'
 import PathField from './PathField'
+import FlagsEditor from './FlagsEditor'
 
 interface Props {
   job: Job
@@ -87,15 +88,16 @@ export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel
           </Picker>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
+        <div className="mt-4">
+          <label className="block max-w-[12rem]">
             <span className="mb-1 block text-sm text-slate-400">Interval (minutes)</span>
             <input type="number" min={1} className="field" value={form.intervalMinutes} onChange={(e) => set('intervalMinutes', Number(e.target.value))} />
           </label>
-          <label className="block">
-            <span className="mb-1 block text-sm text-slate-400">Flags override (blank = global default)</span>
-            <input className="field font-mono" value={form.flagsOverride ?? ''} onChange={(e) => set('flagsOverride', e.target.value || null)} placeholder="/MIR /XJ /R:3 /W:5 /FFT /NP /NFL" />
-          </label>
+        </div>
+
+        <div className="mt-4">
+          <span className="mb-1 block text-sm text-slate-400">Flags override <span className="text-slate-600">(leave empty to use the global default)</span></span>
+          <FlagsEditor value={form.flagsOverride ?? ''} onChange={(v) => set('flagsOverride', v || null)} />
         </div>
 
         <label className="mt-4 flex items-center gap-2">

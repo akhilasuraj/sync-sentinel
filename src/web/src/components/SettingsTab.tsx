@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import type { GlobalSettings } from '../types'
+import FlagsEditor from './FlagsEditor'
 
 export default function SettingsTab({ settings, onSaved }: { settings: GlobalSettings; onSaved: () => void }) {
   const [form, setForm] = useState<GlobalSettings>(settings)
@@ -21,10 +22,10 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
     <section className="max-w-xl rounded-2xl border border-edge bg-panel p-5">
       <h2 className="mb-4 text-base font-semibold">Settings</h2>
 
-      <label className="mb-3 block">
+      <div className="mb-4">
         <span className="mb-1 block text-sm text-slate-400">Default robocopy flags</span>
-        <input className="field font-mono" value={form.defaultFlags} onChange={(e) => set('defaultFlags', e.target.value)} />
-      </label>
+        <FlagsEditor value={form.defaultFlags} onChange={(v) => set('defaultFlags', v)} />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
