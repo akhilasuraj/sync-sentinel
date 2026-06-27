@@ -17,7 +17,7 @@ public sealed class ConfigServiceTests : IDisposable
     {
         var service = NewService();
 
-        Assert.Contains(service.Current.FolderSets, s => s.Name == "DeveloperDefaults");
+        Assert.Contains(service.Current.FolderSets, s => s.Name == "Developer Defaults");
     }
 
     private static Job NewJob(string id = "") => new()
