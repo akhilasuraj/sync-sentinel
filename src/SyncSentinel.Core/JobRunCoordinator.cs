@@ -27,7 +27,7 @@ public sealed class JobRunCoordinator(IHubContext<StatusHub> hub, RobocopyRunner
         var started = DateTimeOffset.UtcNow;
         var lines = new List<string>();
 
-        await hub.Clients.All.SendAsync("runStarted", job.Name);
+        await hub.Clients.All.SendAsync("runStarted", job.JobId, job.Name);
         var result = await runner.RunAsync(job, line =>
         {
             lock (lines)

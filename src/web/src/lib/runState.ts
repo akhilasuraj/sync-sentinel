@@ -5,15 +5,16 @@ export type RunState = 'idle' | 'running' | 'Success' | 'Warning' | 'Error' | 'S
 
 export interface RunInfo {
   state: RunState
+  jobId: string | null
   jobName: string | null
   exitCode: number | null
   lines: string[]
 }
 
-export const IDLE: RunInfo = { state: 'idle', jobName: null, exitCode: null, lines: [] }
+export const IDLE: RunInfo = { state: 'idle', jobId: null, jobName: null, exitCode: null, lines: [] }
 
 /** A run just started: reset to running, clear lines + exit code. */
-export const started = (jobName: string): RunInfo => ({ state: 'running', jobName, exitCode: null, lines: [] })
+export const started = (jobId: string, jobName: string): RunInfo => ({ state: 'running', jobId, jobName, exitCode: null, lines: [] })
 
 /** A log line arrived: append it. */
 export const logged = (prev: RunInfo, line: string): RunInfo => ({ ...prev, lines: [...prev.lines, line] })

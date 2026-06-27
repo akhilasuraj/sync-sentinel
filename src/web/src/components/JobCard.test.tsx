@@ -25,30 +25,39 @@ const noop = () => {}
 
 describe('JobCard', () => {
   it('shows the job name and source → destination', () => {
-    render(<JobCard job={job()} now={NOW} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
+    render(<JobCard job={job()} now={NOW} isRunning={false} onOpen={noop} onRun={noop} />)
     expect(screen.getByText('PEMS')).toBeInTheDocument()
     expect(screen.getByText(/C:\\dev\\PEMS/)).toBeInTheDocument()
   })
 
   it('marks a disabled job as Paused', () => {
-    render(<JobCard job={job({ enabled: false })} now={NOW} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
+    render(<JobCard job={job({ enabled: false })} now={NOW} isRunning={false} onOpen={noop} onRun={noop} />)
     expect(screen.getByText('Paused')).toBeInTheDocument()
   })
 
   it('shows the next-run countdown for an enabled idle job', () => {
-    render(<JobCard job={job({ enabled: true })} status={status()} now={NOW} isRunning={false} onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
+    render(<JobCard job={job({ enabled: true })} status={status()} now={NOW} isRunning={false} onOpen={noop} onRun={noop} />)
     expect(screen.getByText('next in 4m')).toBeInTheDocument()
   })
 
   it('disables Run and shows Running… while running', () => {
-    render(<JobCard job={job({ enabled: true })} now={NOW} isRunning onRun={noop} onEdit={noop} onDelete={noop} onHistory={noop} />)
+    render(<JobCard job={job({ enabled: true })} now={NOW} isRunning onOpen={noop} onRun={noop} />)
     expect(screen.getByRole('button', { name: 'Running…' })).toBeDisabled()
   })
 
-  it('calls onRun when Run now is clicked', () => {
+  it('calls onRun when Run now is clicked, without opening the job', () => {
     const onRun = vi.fn()
-    render(<JobCard job={job({ enabled: true })} now={NOW} isRunning={false} onRun={onRun} onEdit={noop} onDelete={noop} onHistory={noop} />)
+    const onOpen = vi.fn()
+    render(<JobCard job={job({ enabled: true })} now={NOW} isRunning={false} onOpen={onOpen} onRun={onRun} />)
     screen.getByRole('button', { name: 'Run now' }).click()
     expect(onRun).toHaveBeenCalledOnce()
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it('calls onOpen when the card body is clicked', () => {
+    const onOpen = vi.fn()
+    render(<JobCard job={job()} now={NOW} isRunning={false} onOpen={onOpen} onRun={noop} />)
+    screen.getByText('PEMS').click()
+    expect(onOpen).toHaveBeenCalledOnce()
   })
 })

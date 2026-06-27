@@ -6,16 +6,16 @@ import type { JobStatus } from './lib/jobStatus'
 import Sidebar, { type Route } from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import JobCard from './components/JobCard'
+import JobDetails from './components/JobDetails'
 import JobEditor from './components/JobEditor'
-import JobHistory from './components/JobHistory'
 import SetsTab from './components/SetsTab'
 import SettingsTab from './components/SettingsTab'
 
 export default function App() {
   const [config, setConfig] = useState<SyncSentinelConfig | null>(null)
   const [route, setRoute] = useState<Route>('dashboard')
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Job | null>(null)
-  const [historyJob, setHistoryJob] = useState<Job | null>(null)
   const [runningId, setRunningId] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<string, JobStatus>>({})
   const [recent, setRecent] = useState<RunRecord[]>([])
@@ -47,6 +47,9 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
+  const isJobRunning = (job: Job) =>
+    runningId === job.id || (run.state === 'running' && run.jobId === job.id)
+
   async function runJob(job: Job) {
     setRunningId(job.id)
     const res = await api.runJob(job.id)
@@ -55,14 +58,17 @@ export default function App() {
 
   async function deleteJob(job: Job) {
     await api.deleteJob(job.id)
+    setSelectedJobId(null)
     reload()
   }
 
   if (!config) return <div className="grid h-screen place-items-center text-slate-500">Loading…</div>
 
+  const selectedJob = selectedJobId ? config.jobs.find((j) => j.id === selectedJobId) : undefined
+
   return (
     <div className="flex h-screen">
-      <Sidebar route={route} onNavigate={setRoute} connected={connected} />
+      <Sidebar route={route} onNavigate={(r) => { setRoute(r); setSelectedJobId(null) }} connected={connected} />
 
       <main className="min-w-0 flex-1 overflow-auto">
         {route === 'dashboard' && (
@@ -72,12 +78,26 @@ export default function App() {
             now={now}
             recent={recent}
             stats={stats}
-            onOpenJob={() => setRoute('jobs')}
+            onOpenJob={(id) => { setRoute('jobs'); setSelectedJobId(id) }}
             onCreate={() => setEditing(blankJob())}
           />
         )}
 
-        {route === 'jobs' && (
+        {route === 'jobs' && selectedJob && (
+          <JobDetails
+            job={selectedJob}
+            status={statuses[selectedJob.id]}
+            now={now}
+            run={run}
+            isRunning={isJobRunning(selectedJob)}
+            onBack={() => setSelectedJobId(null)}
+            onRun={() => runJob(selectedJob)}
+            onEdit={() => setEditing(selectedJob)}
+            onDelete={() => deleteJob(selectedJob)}
+          />
+        )}
+
+        {route === 'jobs' && !selectedJob && (
           <div className="mx-auto max-w-5xl px-8 py-8">
             <div className="flex items-center justify-between">
               <p className="eyebrow">Jobs</p>
@@ -100,11 +120,9 @@ export default function App() {
                     job={job}
                     status={statuses[job.id]}
                     now={now}
-                    isRunning={runningId === job.id || (run.state === 'running' && run.jobName === job.name)}
+                    isRunning={isJobRunning(job)}
+                    onOpen={() => setSelectedJobId(job.id)}
                     onRun={() => runJob(job)}
-                    onEdit={() => setEditing(job)}
-                    onDelete={() => deleteJob(job)}
-                    onHistory={() => setHistoryJob(job)}
                   />
                 ))}
               </div>
@@ -135,10 +153,6 @@ export default function App() {
           onSaved={() => { setEditing(null); reload() }}
           onCancel={() => setEditing(null)}
         />
-      )}
-
-      {historyJob && (
-        <JobHistory jobId={historyJob.id} jobName={historyJob.name} onClose={() => setHistoryJob(null)} />
       )}
     </div>
   )
