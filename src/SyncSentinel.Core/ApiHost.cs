@@ -139,6 +139,13 @@ public static class ApiHost
             return Results.Text(File.ReadAllText(run.LogPath));
         });
 
+        // ── Dashboard queries ─────────────────────────────────────────────────
+        // Recent activity across all jobs, and a rolling 7-day aggregate.
+        app.MapGet("/api/runs/recent", (RunHistoryStore history, int? limit) =>
+            Results.Json(history.Recent(limit ?? 10)));
+        app.MapGet("/api/stats", (RunHistoryStore history) =>
+            Results.Json(RunStats.Summarize(history.All(), DateTimeOffset.UtcNow.AddDays(-7))));
+
         // ── Effective-command preview (works for unsaved edits) ───────────────
         app.MapPost("/api/preview", (Job job, ConfigService cfg) =>
         {
