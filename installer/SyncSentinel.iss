@@ -71,6 +71,13 @@ Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
+[UninstallDelete]
+; WebView2 creates its user-data folder (browser cache) next to the exe at
+; runtime; Inno never installed it, so it must be removed explicitly. Then drop
+; the install dir once it's empty.
+Type: filesandordirs; Name: "{app}\{#AppExeName}.WebView2"
+Type: dirifempty; Name: "{app}"
+
 [Run]
 ; Launch WITHOUT --tray so the window shows; the app then reconciles login
 ; autostart itself (writing the HKCU Run entry per its saved setting).

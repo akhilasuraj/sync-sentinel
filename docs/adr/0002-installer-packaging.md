@@ -47,8 +47,10 @@ user-data folder next to the exe. The installer must not undermine that model.
   launches the app at finish, and the app reconciles the key from `Settings.Autostart`
   (default true) using `Environment.ProcessPath`. One source of truth.
 - **WebView2.** The user-data folder stays next to the exe — inside the per-user
-  install dir, so it is writable and removed wholesale when Inno deletes the install
-  dir (no code change). The installer does a registry **detect-and-warn** for the
+  install dir, writable. It is created at *runtime*, so Inno never recorded installing
+  it and won't auto-delete it (Inno only removes files it installed, plus empty dirs);
+  the uninstaller therefore removes it explicitly via `[UninstallDelete]`, then drops
+  the now-empty install dir. The installer does a registry **detect-and-warn** for the
   Evergreen runtime: if missing, a friendly message + download link instead of a blank
   white window.
 - **Ship both artifacts.** Each release attaches the **portable build** (single-file
