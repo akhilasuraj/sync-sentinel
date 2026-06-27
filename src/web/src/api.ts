@@ -27,6 +27,20 @@ const put = (body: unknown): RequestInit => ({
 export const api = {
   getConfig: () => fetch('/api/config').then(json<SyncSentinelConfig>),
 
+  // Shell-only features the UI conditionally enables (e.g. the native picker).
+  capabilities: () => fetch('/api/capabilities').then(json<{ folderPicker: boolean }>),
+
+  // Native folder dialog: the chosen absolute path, or null on cancel/unavailable
+  // (204 / 501). Only called when capabilities.folderPicker is true.
+  pickFolder: (body: { initialPath?: string; title?: string }) =>
+    fetch('/api/pick-folder', post(body)).then(async (r) =>
+      r.status === 200 ? ((await r.json()) as { path: string }).path : null,
+    ),
+
+  // Does this folder exist? (Backs the editor's path hint.)
+  pathExists: (path: string) =>
+    fetch(`/api/path-exists?path=${encodeURIComponent(path)}`).then(json<{ exists: boolean }>),
+
   addJob: (j: Partial<Job>) => fetch('/api/jobs', post(j)).then(json<Job>),
   updateJob: (id: string, j: Job) => fetch(`/api/jobs/${id}`, put(j)),
   deleteJob: (id: string) => fetch(`/api/jobs/${id}`, { method: 'DELETE' }),

@@ -11,6 +11,9 @@ vi.mock('../api', () => ({
     preview: vi.fn().mockResolvedValue({ command: 'robocopy ...' }),
     addJob: vi.fn().mockResolvedValue({ id: 'new' }),
     updateJob: vi.fn().mockResolvedValue(undefined),
+    capabilities: vi.fn().mockResolvedValue({ folderPicker: false }),
+    pickFolder: vi.fn().mockResolvedValue('C:\\picked\\folder'),
+    pathExists: vi.fn().mockResolvedValue({ exists: true }),
   },
 }))
 import { api } from '../api'
@@ -45,5 +48,24 @@ describe('JobEditor', () => {
     await user.type(screen.getByLabelText('Source'), 's')
     await user.type(screen.getByLabelText('Destination'), 'd')
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  })
+
+  it('hides Browse when the native picker is unavailable (dev browser)', async () => {
+    render(<JobEditor job={blankJob()} folderSets={folderSets} fileSets={[]} onSaved={() => {}} onCancel={() => {}} />)
+
+    await screen.findByLabelText('Source') // let the capabilities effect settle
+    expect(screen.queryByRole('button', { name: /browse/i })).toBeNull()
+  })
+
+  it('shows Browse when available and fills the field from the picker', async () => {
+    vi.mocked(api.capabilities).mockResolvedValueOnce({ folderPicker: true })
+    const user = userEvent.setup()
+    render(<JobEditor job={blankJob()} folderSets={folderSets} fileSets={[]} onSaved={() => {}} onCancel={() => {}} />)
+
+    const browse = await screen.findByRole('button', { name: /browse for source folder/i })
+    await user.click(browse)
+
+    expect(api.pickFolder).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('Source')).toHaveValue('C:\\picked\\folder')
   })
 })

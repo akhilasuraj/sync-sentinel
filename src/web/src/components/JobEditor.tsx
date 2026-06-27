@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { toggleId } from '../lib/forms'
 import type { FileExclusionSet, FolderExclusionSet, Job } from '../types'
+import PathField from './PathField'
 
 interface Props {
   job: Job
@@ -15,7 +16,13 @@ export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel
   const [form, setForm] = useState<Job>(job)
   const [preview, setPreview] = useState('')
   const [saving, setSaving] = useState(false)
+  const [pickerAvailable, setPickerAvailable] = useState(false)
   const set = <K extends keyof Job>(key: K, value: Job[K]) => setForm((f) => ({ ...f, [key]: value }))
+
+  // The native Browse picker exists only in the desktop shell; hide it otherwise.
+  useEffect(() => {
+    api.capabilities().then((c) => setPickerAvailable(c.folderPicker)).catch(() => setPickerAvailable(false))
+  }, [])
 
   // Live "effective command" preview — reflects exactly what robocopy will run.
   useEffect(() => {
@@ -51,14 +58,16 @@ export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel
           <input className="field" value={form.name} onChange={(e) => set('name', e.target.value)} />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-sm text-slate-400">Source</span>
-            <input className="field" value={form.source} onChange={(e) => set('source', e.target.value)} placeholder="C:\dev\MyProject" />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-sm text-slate-400">Destination</span>
-            <input className="field" value={form.destination} onChange={(e) => set('destination', e.target.value)} placeholder="D:\Backup\MyProject" />
-          </label>
+          <PathField
+            label="Source" role="source" value={form.source}
+            onChange={(v) => set('source', v)} placeholder="C:\dev\MyProject"
+            pickerAvailable={pickerAvailable}
+          />
+          <PathField
+            label="Destination" role="destination" value={form.destination}
+            onChange={(v) => set('destination', v)} placeholder="D:\Backup\MyProject"
+            pickerAvailable={pickerAvailable}
+          />
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
