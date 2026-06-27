@@ -26,4 +26,9 @@ describe('run state transitions', () => {
     expect(s.exitCode).toBe(1)
     expect(s.lines).toEqual(['x'])
   })
+
+  it('finished can settle to Skipped when a precondition failed', () => {
+    const s = finished(started('J'), 'Skipped', -1)
+    expect(s.state).toBe('Skipped')
+  })
 })

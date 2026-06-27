@@ -50,6 +50,21 @@ public sealed class RunRecorderTests : IDisposable
     }
 
     [Fact]
+    public void RecordSkipped_stores_a_Skipped_run_with_the_reason_in_its_log()
+    {
+        var rec = NewRecorder();
+
+        var record = rec.RecordSkipped("job1", "PEMS", "Source folder not found: C:\\nope", _now);
+
+        Assert.Equal("Skipped", record.Status);
+        Assert.True(File.Exists(record.LogPath), "a log noting the skip reason should be written");
+        Assert.Contains("Source folder not found", File.ReadAllText(record.LogPath));
+
+        var stored = Assert.Single(_history.ListByJob("job1"));
+        Assert.Equal("Skipped", stored.Status);
+    }
+
+    [Fact]
     public void Record_prunes_history_beyond_retention_and_deletes_old_log_files()
     {
         _config.UpdateSettings(_config.Current.Settings with { Retention = new RetentionSettings { RunsPerJob = 1, Days = 3650 } });

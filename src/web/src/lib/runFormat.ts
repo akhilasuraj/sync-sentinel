@@ -8,6 +8,8 @@ export function statusDotClass(status: string): string {
       return 'bg-amber-400'
     case 'Error':
       return 'bg-red-500'
+    case 'Skipped':
+      return 'bg-yellow-500'
     default:
       return 'bg-slate-500'
   }

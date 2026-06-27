@@ -17,6 +17,7 @@ const DOT: Record<RunState, string> = {
   Success: 'bg-green-500',
   Warning: 'bg-amber-400',
   Error: 'bg-red-500',
+  Skipped: 'bg-yellow-500',
 }
 
 export default function App() {

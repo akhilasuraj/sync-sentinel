@@ -57,6 +57,12 @@ describe('cardState', () => {
     expect(r.dot).not.toContain('animate-pulse')
   })
 
+  it('colours a Skipped last run yellow and keeps the countdown label', () => {
+    const r = cardState({ ...base, lastStatus: 'Skipped' }, true, now)
+    expect(r.dot).toContain('yellow')
+    expect(r.label).toBe('next in 4m')
+  })
+
   it('shows a grey dot and "Not run yet" for an enabled job that never ran', () => {
     const r = cardState({ ...base, lastStatus: null, nextDueUtc: null }, true, now)
     expect(r.label).toBe('Not run yet')

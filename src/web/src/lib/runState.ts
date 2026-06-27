@@ -1,7 +1,7 @@
 // The live-run model and its transitions, extracted from useHub so the state
 // logic is unit-testable without a SignalR connection.
 
-export type RunState = 'idle' | 'running' | 'Success' | 'Warning' | 'Error'
+export type RunState = 'idle' | 'running' | 'Success' | 'Warning' | 'Error' | 'Skipped'
 
 export interface RunInfo {
   state: RunState
