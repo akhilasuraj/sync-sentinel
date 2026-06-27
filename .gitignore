@@ -14,8 +14,12 @@ build/
 # Generated React build (served by the shell; rebuilt by `npm run build`)
 src/SyncSentinel/wwwroot/
 
-# Publish output (single-file exe)
+# Publish output (portable single-file exe)
 publish/
+
+# Publish output (multi-file build that feeds the installer) + the built installer
+publish-app/
+installer/*.exe
 
 # Test output
 [Tt]est[Rr]esults/
