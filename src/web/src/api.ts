@@ -4,8 +4,10 @@ import type {
   GlobalSettings,
   Job,
   RunRecord,
+  RunStats,
   SyncSentinelConfig,
 } from './types'
+import type { JobStatus } from './lib/jobStatus'
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -40,6 +42,14 @@ export const api = {
   // Does this folder exist? (Backs the editor's path hint.)
   pathExists: (path: string) =>
     fetch(`/api/path-exists?path=${encodeURIComponent(path)}`).then(json<{ exists: boolean }>),
+
+  // Per-job run-state feed: last-run status (dot colour) + next-due (countdown).
+  getJobStatuses: () => fetch('/api/jobs/status').then(json<JobStatus[]>),
+
+  // Dashboard: recent activity across all jobs + the rolling 7-day aggregate.
+  getRecentRuns: (limit?: number) =>
+    fetch(`/api/runs/recent${limit ? `?limit=${limit}` : ''}`).then(json<RunRecord[]>),
+  getStats: () => fetch('/api/stats').then(json<RunStats>),
 
   addJob: (j: Partial<Job>) => fetch('/api/jobs', post(j)).then(json<Job>),
   updateJob: (id: string, j: Job) => fetch(`/api/jobs/${id}`, put(j)),

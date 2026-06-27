@@ -107,6 +107,18 @@ public sealed class RunHistoryStore : IDisposable
         }
     }
 
+    /// <summary>The newest runs across all jobs (for the dashboard activity feed).</summary>
+    public IReadOnlyList<RunRecord> Recent(int limit = 10)
+    {
+        lock (_gate)
+        {
+            using var cmd = _conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM runs ORDER BY finishedUtc DESC LIMIT $limit;";
+            cmd.Parameters.AddWithValue("$limit", limit);
+            return Read(cmd);
+        }
+    }
+
     public IReadOnlyList<RunRecord> All()
     {
         lock (_gate)

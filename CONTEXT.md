@@ -26,7 +26,13 @@ ubiquitous language — use these terms exactly in code, issues, and docs.
   parsed robocopy counts (copied / skipped / extras / failed), exit code, and a
   `.log` file. Run metadata is recorded in the history store.
 - **Run status** — `Idle` · `Queued` · `Running` · `Success` · `Warning` (extras /
-  non-fatal) · `Error`.
+  non-fatal) · `Error` · `Skipped` (a **run precondition** failed, so robocopy was
+  never invoked; recorded with exit code `-1` and the reason as its log).
+- **Run preconditions** — a job may only run when its **source** folder exists and
+  the **destination drive/root** exists (robocopy creates a missing destination
+  folder, but not a missing drive). Enabling a job (the paused→enabled transition)
+  and **Run now** are blocked with the reason when a precondition fails; a *scheduled*
+  due job that fails is recorded as a `Skipped` run instead of a failing robocopy.
 - **Scheduler** — the in-process timer set per job. The interval is anchored to the
   **last finish** (not wall-clock), so a slow run never causes a pileup. A job never
   overlaps itself.

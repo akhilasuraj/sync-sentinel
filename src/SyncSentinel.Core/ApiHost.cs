@@ -69,11 +69,62 @@ public static class ApiHost
         // ── Jobs ──────────────────────────────────────────────────────────────
         app.MapPost("/api/jobs", (Job job, ConfigService cfg) => Results.Json(cfg.AddJob(job)));
         app.MapPut("/api/jobs/{id}", (string id, Job job, ConfigService cfg) =>
-            cfg.UpdateJob(job with { Id = id }) ? Results.NoContent() : Results.NotFound());
+        {
+            var incoming = job with { Id = id };
+            var existing = cfg.Current.Jobs.FirstOrDefault(j => j.Id == id);
+            if (existing is null)
+            {
+                return Results.NotFound();
+            }
+            // Block the transition INTO enabled when the job can't run; never
+            // re-validate an already-enabled job (its drive may be briefly offline).
+            if (incoming.Enabled && !existing.Enabled)
+            {
+                var reason = RunPreconditions.Check(incoming.Source, incoming.Destination);
+                if (reason is not null)
+                {
+                    return Results.Json(new { error = reason }, statusCode: StatusCodes.Status422UnprocessableEntity);
+                }
+            }
+            return cfg.UpdateJob(incoming) ? Results.NoContent() : Results.NotFound();
+        });
         app.MapDelete("/api/jobs/{id}", (string id, ConfigService cfg) =>
             cfg.DeleteJob(id) ? Results.NoContent() : Results.NotFound());
-        app.MapPost("/api/jobs/{id}/run", (string id, Scheduler scheduler) =>
-            scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound());
+        app.MapPost("/api/jobs/{id}/run", (string id, ConfigService cfg, Scheduler scheduler) =>
+        {
+            var job = cfg.Current.Jobs.FirstOrDefault(j => j.Id == id);
+            if (job is null)
+            {
+                return Results.NotFound();
+            }
+            // Block a doomed manual run with a clear reason (a scheduled run would
+            // instead be recorded as Skipped — see JobRunCoordinator).
+            var reason = RunPreconditions.Check(job.Source, job.Destination);
+            if (reason is not null)
+            {
+                return Results.Json(new { error = reason }, statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+            return scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound();
+        });
+
+        // ── Per-job run-state feed (backs the card's status dot + countdown) ──
+        // Last-run status comes from the history store (persists across restarts);
+        // next-due is derived from that last finish via Schedule (stable across a
+        // restart, unlike the scheduler's in-memory anchor which forces catch-up).
+        app.MapGet("/api/jobs/status", (ConfigService cfg, RunHistoryStore history, RunQueue queue) =>
+            Results.Json(cfg.Current.Jobs.Select(j =>
+            {
+                var last = history.ListByJob(j.Id, 1).FirstOrDefault();
+                return new
+                {
+                    jobId = j.Id,
+                    lastStatus = last?.Status,
+                    nextDueUtc = j.Enabled ? Schedule.NextDue(j, last?.FinishedUtc) : (DateTimeOffset?)null,
+                    state = queue.Running == j.Id ? "Running"
+                        : queue.Pending.Contains(j.Id) ? "Queued"
+                        : "Idle",
+                };
+            })));
 
         // ── Run history ───────────────────────────────────────────────────────
         app.MapGet("/api/jobs/{id}/runs", (string id, RunHistoryStore history) =>
@@ -87,6 +138,13 @@ public static class ApiHost
             }
             return Results.Text(File.ReadAllText(run.LogPath));
         });
+
+        // ── Dashboard queries ─────────────────────────────────────────────────
+        // Recent activity across all jobs, and a rolling 7-day aggregate.
+        app.MapGet("/api/runs/recent", (RunHistoryStore history, int? limit) =>
+            Results.Json(history.Recent(limit ?? 10)));
+        app.MapGet("/api/stats", (RunHistoryStore history) =>
+            Results.Json(RunStats.Summarize(history.All(), DateTimeOffset.UtcNow.AddDays(-7))));
 
         // ── Effective-command preview (works for unsaved edits) ───────────────
         app.MapPost("/api/preview", (Job job, ConfigService cfg) =>

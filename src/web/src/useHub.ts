@@ -21,7 +21,7 @@ export function useHub(onFinished?: () => void) {
       .withAutomaticReconnect()
       .build()
 
-    connection.on('runStarted', (jobName: string) => setRun(started(jobName)))
+    connection.on('runStarted', (jobId: string, jobName: string) => setRun(started(jobId, jobName)))
     connection.on('log', (line: string) => setRun((r) => logged(r, line)))
     connection.on('runFinished', (status: RunState, exitCode: number) => {
       setRun((r) => finished(r, status, exitCode))

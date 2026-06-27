@@ -64,7 +64,7 @@ export default function PathField({ label, role, value, onChange, placeholder, p
             onClick={browse}
             aria-label={`Browse for ${role} folder`}
             title="Browse…"
-            className="absolute inset-y-1 right-1 grid w-9 place-items-center rounded-md text-slate-400 transition hover:bg-slate-700/50 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="absolute inset-y-1 right-1 grid w-9 place-items-center rounded-md text-slate-400 transition hover:bg-slate-700/50 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sentinel"
           >
             <FolderIcon />
           </button>

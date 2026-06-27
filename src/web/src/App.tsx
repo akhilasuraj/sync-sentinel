@@ -1,112 +1,149 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from './api'
-import { useHub, type RunState } from './useHub'
-import { blankJob, type Job, type SyncSentinelConfig } from './types'
+import { useHub } from './useHub'
+import { blankJob, type Job, type RunRecord, type RunStats, type SyncSentinelConfig } from './types'
+import type { JobStatus } from './lib/jobStatus'
+import Sidebar, { type Route } from './components/Sidebar'
+import Dashboard from './components/Dashboard'
 import JobCard from './components/JobCard'
+import JobDetails from './components/JobDetails'
 import JobEditor from './components/JobEditor'
-import JobHistory from './components/JobHistory'
 import SetsTab from './components/SetsTab'
 import SettingsTab from './components/SettingsTab'
 
-type Tab = 'jobs' | 'sets' | 'settings'
-
-const DOT: Record<RunState, string> = {
-  idle: 'bg-slate-500',
-  running: 'bg-amber-400 animate-pulse',
-  Success: 'bg-green-500',
-  Warning: 'bg-amber-400',
-  Error: 'bg-red-500',
-}
-
 export default function App() {
   const [config, setConfig] = useState<SyncSentinelConfig | null>(null)
-  const [tab, setTab] = useState<Tab>('jobs')
+  const [route, setRoute] = useState<Route>('dashboard')
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Job | null>(null)
-  const [historyJob, setHistoryJob] = useState<Job | null>(null)
   const [runningId, setRunningId] = useState<string | null>(null)
-  const logRef = useRef<HTMLPreElement>(null)
+  const [statuses, setStatuses] = useState<Record<string, JobStatus>>({})
+  const [recent, setRecent] = useState<RunRecord[]>([])
+  const [stats, setStats] = useState<RunStats | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
   const { connected, run } = useHub(() => setRunningId(null))
   const reload = useCallback(() => api.getConfig().then(setConfig), [])
+  const reloadStatuses = useCallback(
+    () => api.getJobStatuses().then((list) => setStatuses(Object.fromEntries(list.map((s) => [s.jobId, s])))),
+    [],
+  )
+  const reloadDashboard = useCallback(() => {
+    api.getRecentRuns(10).then(setRecent).catch(() => {})
+    api.getStats().then(setStats).catch(() => {})
+  }, [])
+
   useEffect(() => void reload(), [reload])
 
+  // Refresh the run-state feed + dashboard data on load and on every run change.
   useEffect(() => {
-    const el = logRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [run.lines])
+    reloadStatuses()
+    reloadDashboard()
+  }, [reloadStatuses, reloadDashboard, run.state])
+
+  // Tick a shared clock so countdowns stay live.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const isJobRunning = (job: Job) =>
+    runningId === job.id || (run.state === 'running' && run.jobId === job.id)
 
   async function runJob(job: Job) {
     setRunningId(job.id)
     const res = await api.runJob(job.id)
-    if (!res.ok) setRunningId(null) // 409 already running, etc.
+    if (!res.ok) setRunningId(null) // 409 already running / 422 precondition failed
   }
 
   async function deleteJob(job: Job) {
     await api.deleteJob(job.id)
+    setSelectedJobId(null)
     reload()
   }
 
   if (!config) return <div className="grid h-screen place-items-center text-slate-500">Loading…</div>
 
-  return (
-    <div className="mx-auto flex h-screen max-w-4xl flex-col gap-4 p-6">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold tracking-tight">SyncSentinel</h1>
-          <nav className="flex gap-1 rounded-lg bg-panel p-1">
-            {(['jobs', 'sets', 'settings'] as Tab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`rounded-md px-3 py-1 text-sm capitalize transition ${tab === t ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                {t === 'sets' ? 'Exclusion sets' : t}
-              </button>
-            ))}
-          </nav>
-        </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs ${connected ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-          {connected ? 'connected' : 'disconnected'}
-        </span>
-      </header>
+  const selectedJob = selectedJobId ? config.jobs.find((j) => j.id === selectedJobId) : undefined
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        {tab === 'jobs' && (
-          <div className="space-y-3">
-            <div className="flex justify-end">
+  return (
+    <div className="flex h-screen">
+      <Sidebar route={route} onNavigate={(r) => { setRoute(r); setSelectedJobId(null) }} connected={connected} />
+
+      <main className="min-w-0 flex-1 overflow-auto">
+        {route === 'dashboard' && (
+          <Dashboard
+            jobs={config.jobs}
+            statusById={statuses}
+            now={now}
+            recent={recent}
+            stats={stats}
+            onOpenJob={(id) => { setRoute('jobs'); setSelectedJobId(id) }}
+            onCreate={() => setEditing(blankJob())}
+          />
+        )}
+
+        {route === 'jobs' && selectedJob && (
+          <JobDetails
+            job={selectedJob}
+            status={statuses[selectedJob.id]}
+            now={now}
+            run={run}
+            isRunning={isJobRunning(selectedJob)}
+            onBack={() => setSelectedJobId(null)}
+            onRun={() => runJob(selectedJob)}
+            onEdit={() => setEditing(selectedJob)}
+            onDelete={() => deleteJob(selectedJob)}
+          />
+        )}
+
+        {route === 'jobs' && !selectedJob && (
+          <div className="mx-auto max-w-5xl px-8 py-8">
+            <div className="flex items-center justify-between">
+              <p className="eyebrow">Jobs</p>
               <button className="btn" onClick={() => setEditing(blankJob())}>+ New job</button>
             </div>
-            {config.jobs.length === 0 && <p className="text-sm text-slate-500">No jobs yet — add one.</p>}
-            {config.jobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                isRunning={runningId === job.id || (run.state === 'running' && run.jobName === job.name)}
-                onRun={() => runJob(job)}
-                onEdit={() => setEditing(job)}
-                onDelete={() => deleteJob(job)}
-                onHistory={() => setHistoryJob(job)}
-              />
-            ))}
+
+            {config.jobs.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-dashed border-edge bg-panel/50 p-12 text-center">
+                <h2 className="text-lg font-semibold text-slate-100">No jobs yet</h2>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                  Back up your first folder in seconds — choose a source and a destination and SyncSentinel keeps them mirrored.
+                </p>
+                <button className="btn mt-5" onClick={() => setEditing(blankJob())}>Create a job</button>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3">
+                {config.jobs.map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    status={statuses[job.id]}
+                    now={now}
+                    isRunning={isJobRunning(job)}
+                    onOpen={() => setSelectedJobId(job.id)}
+                    onRun={() => runJob(job)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {tab === 'sets' && <SetsTab folderSets={config.folderSets} fileSets={config.fileSets} onChanged={reload} />}
-        {tab === 'settings' && <SettingsTab settings={config.settings} onSaved={reload} />}
-      </div>
+        {route === 'sets' && (
+          <div className="mx-auto max-w-5xl px-8 py-8">
+            <p className="eyebrow mb-5">Exclusion sets</p>
+            <SetsTab folderSets={config.folderSets} fileSets={config.fileSets} onChanged={reload} />
+          </div>
+        )}
 
-      {/* Live run panel */}
-      <section className="flex h-56 shrink-0 flex-col overflow-hidden rounded-2xl border border-edge bg-panel-2">
-        <div className="flex items-center gap-2 border-b border-edge bg-slate-800/30 px-4 py-2.5 text-xs text-slate-400">
-          <span className={`h-2 w-2 rounded-full ${DOT[run.state]}`} />
-          <span className="font-semibold text-slate-300">{run.jobName ?? 'No run yet'}</span>
-          <span>· {run.state}</span>
-          {run.exitCode != null && <span className="ml-auto tabular-nums">exit {run.exitCode}</span>}
-        </div>
-        <pre ref={logRef} className="m-0 flex-1 overflow-auto px-4 py-3 font-mono text-[12px] leading-relaxed break-words whitespace-pre-wrap">
-          {run.lines.length === 0 ? <span className="text-slate-600">Run a job to see live output.</span> : run.lines.join('\n')}
-        </pre>
-      </section>
+        {route === 'settings' && (
+          <div className="mx-auto max-w-5xl px-8 py-8">
+            <p className="eyebrow mb-5">Settings</p>
+            <SettingsTab settings={config.settings} onSaved={reload} />
+          </div>
+        )}
+      </main>
 
       {editing && (
         <JobEditor
@@ -116,10 +153,6 @@ export default function App() {
           onSaved={() => { setEditing(null); reload() }}
           onCancel={() => setEditing(null)}
         />
-      )}
-
-      {historyJob && (
-        <JobHistory jobId={historyJob.id} jobName={historyJob.name} onClose={() => setHistoryJob(null)} />
       )}
     </div>
   )

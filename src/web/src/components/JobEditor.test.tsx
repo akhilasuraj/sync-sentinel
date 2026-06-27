@@ -30,7 +30,7 @@ describe('JobEditor', () => {
     await user.type(screen.getByLabelText('Name'), 'PEMS')
     await user.type(screen.getByLabelText('Source'), 'C:\\dev\\PEMS')
     await user.type(screen.getByLabelText('Destination'), 'D:\\bak\\PEMS')
-    await user.click(screen.getByRole('button', { name: 'DotNet' })) // toggle the set on
+    await user.click(screen.getByRole('button', { name: 'Add DotNet' })) // attach the set
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(api.addJob).toHaveBeenCalledTimes(1)

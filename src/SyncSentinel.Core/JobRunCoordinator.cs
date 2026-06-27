@@ -13,10 +13,21 @@ public sealed class JobRunCoordinator(IHubContext<StatusHub> hub, RobocopyRunner
 {
     public async Task RunAsync(BackupJob job)
     {
+        // Skip (don't invoke robocopy) when a precondition fails — e.g. the source
+        // went missing since the job was scheduled. Recorded as a "Skipped" run so
+        // it's visible in history instead of producing a confusing robocopy error.
+        var reason = RunPreconditions.Check(job.Source, job.Destination);
+        if (reason is not null)
+        {
+            recorder.RecordSkipped(job.JobId, job.Name, reason, DateTimeOffset.UtcNow);
+            await hub.Clients.All.SendAsync("runFinished", "Skipped", -1);
+            return;
+        }
+
         var started = DateTimeOffset.UtcNow;
         var lines = new List<string>();
 
-        await hub.Clients.All.SendAsync("runStarted", job.Name);
+        await hub.Clients.All.SendAsync("runStarted", job.JobId, job.Name);
         var result = await runner.RunAsync(job, line =>
         {
             lock (lines)

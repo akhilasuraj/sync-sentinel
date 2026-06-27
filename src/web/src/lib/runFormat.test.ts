@@ -8,6 +8,10 @@ describe('statusDotClass', () => {
     expect(statusDotClass('Error')).toContain('red')
   })
 
+  it('maps Skipped (precondition failed, did not run) to yellow', () => {
+    expect(statusDotClass('Skipped')).toContain('yellow')
+  })
+
   it('falls back to slate for an unknown status', () => {
     expect(statusDotClass('whatever')).toContain('slate')
   })

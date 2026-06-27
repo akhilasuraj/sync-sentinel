@@ -44,6 +44,12 @@ export interface SyncSentinelConfig {
   settings: GlobalSettings
 }
 
+export interface RunStats {
+  runs: number
+  filesCopied: number
+  failures: number
+}
+
 export interface RunRecord {
   id: string
   jobId: string

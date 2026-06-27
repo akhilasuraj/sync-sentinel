@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { api } from '../api'
 import type { GlobalSettings } from '../types'
+import FlagsEditor from './FlagsEditor'
 
 export default function SettingsTab({ settings, onSaved }: { settings: GlobalSettings; onSaved: () => void }) {
   const [form, setForm] = useState<GlobalSettings>(settings)
   const [saving, setSaving] = useState(false)
   const set = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => setForm((f) => ({ ...f, [key]: value }))
+  const dirty = JSON.stringify(form) !== JSON.stringify(settings)
 
   async function save() {
     setSaving(true)
@@ -21,10 +23,10 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
     <section className="max-w-xl rounded-2xl border border-edge bg-panel p-5">
       <h2 className="mb-4 text-base font-semibold">Settings</h2>
 
-      <label className="mb-3 block">
+      <div className="mb-4">
         <span className="mb-1 block text-sm text-slate-400">Default robocopy flags</span>
-        <input className="field font-mono" value={form.defaultFlags} onChange={(e) => set('defaultFlags', e.target.value)} />
-      </label>
+        <FlagsEditor value={form.defaultFlags} onChange={(v) => set('defaultFlags', v)} />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
@@ -50,8 +52,9 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
         <span className="text-sm">Start automatically on login</span>
       </label>
 
-      <div className="mt-6">
-        <button className="btn" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button>
+      <div className="mt-6 flex items-center gap-2">
+        <button className="btn" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button>
+        {dirty && <button className="btn-ghost" disabled={saving} onClick={() => setForm(settings)}>Cancel</button>}
       </div>
     </section>
   )

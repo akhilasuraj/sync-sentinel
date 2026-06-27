@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace SyncSentinel;
@@ -11,9 +13,13 @@ namespace SyncSentinel;
 /// </summary>
 internal sealed class MainForm : Form
 {
+    private const string WebView2DownloadUrl = "https://developer.microsoft.com/microsoft-edge/webview2/";
+
     private readonly NotifyIcon _tray;
     private bool _exitRequested;
     private bool _allowVisible;
+    private bool _webViewFailed;
+    private bool _webViewWarned;
 
     public MainForm(string url, bool startHidden)
     {
@@ -25,6 +31,7 @@ internal sealed class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
 
         var web = new WebView2 { Dock = DockStyle.Fill };
+        web.CoreWebView2InitializationCompleted += OnWebViewInitialized;
         Controls.Add(web);
         web.Source = new Uri(url);
 
@@ -74,6 +81,55 @@ internal sealed class MainForm : Form
         Show();
         WindowState = FormWindowState.Normal;
         Activate();
+        WarnIfWebViewFailed();
+    }
+
+    // If the WebView2 runtime can't start, the page never renders. Rather than
+    // leave a blank window, explain it and offer the download — but only once the
+    // window is actually shown, so a silent --tray login start never nags. Backups
+    // keep running from the tray regardless.
+    private void OnWebViewInitialized(object? sender, CoreWebView2InitializationCompletedEventArgs e)
+    {
+        if (e.IsSuccess)
+        {
+            return;
+        }
+        _webViewFailed = true;
+        if (Visible)
+        {
+            WarnIfWebViewFailed();
+        }
+    }
+
+    private void WarnIfWebViewFailed()
+    {
+        if (!_webViewFailed || _webViewWarned)
+        {
+            return;
+        }
+        _webViewWarned = true;
+
+        var open = MessageBox.Show(
+            "SyncSentinel needs the Microsoft Edge WebView2 Runtime to show its window, "
+            + "and it couldn't be started on this PC.\n\n"
+            + "Your backups still run in the background from the tray icon. To restore the "
+            + "window, install the Evergreen WebView2 Runtime and relaunch SyncSentinel.\n\n"
+            + "Open the download page now?",
+            "WebView2 Runtime required",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+
+        if (open == DialogResult.Yes)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(WebView2DownloadUrl) { UseShellExecute = true });
+            }
+            catch
+            {
+                // Best-effort; the URL is in the message above.
+            }
+        }
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)

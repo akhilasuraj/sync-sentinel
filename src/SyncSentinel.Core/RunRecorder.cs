@@ -60,6 +60,35 @@ public sealed class RunRecorder
         return record;
     }
 
+    /// <summary>
+    /// Record a run that never invoked robocopy because a precondition failed
+    /// (e.g. the source folder went missing at run time). Stored with status
+    /// "Skipped" and the reason as its log, so it surfaces in history like any
+    /// other run. Exit code -1 marks "robocopy was not run".
+    /// </summary>
+    public RunRecord RecordSkipped(string jobId, string jobName, string reason, DateTimeOffset when)
+    {
+        var id = _newId();
+        var logPath = Path.Combine(_logsDir, jobId, $"{when:yyyyMMdd_HHmmss}_{id}.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        File.WriteAllLines(logPath, [$"Skipped: {reason}"]);
+
+        var record = new RunRecord
+        {
+            Id = id,
+            JobId = jobId,
+            JobName = jobName,
+            Status = "Skipped",
+            StartedUtc = when,
+            FinishedUtc = when,
+            ExitCode = -1,
+            LogPath = logPath,
+        };
+        _history.Add(record);
+        Prune();
+        return record;
+    }
+
     private void Prune()
     {
         var all = _history.All();

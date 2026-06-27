@@ -15,7 +15,7 @@ public sealed class ConfigStoreTests : IDisposable
     {
         var config = new ConfigStore(_dir).Load();
 
-        Assert.Contains(config.FolderSets, s => s.Name == "DeveloperDefaults");
+        Assert.Contains(config.FolderSets, s => s.Name == "Developer Defaults");
         Assert.True(File.Exists(Path.Combine(_dir, "config.json")), "the seed should be persisted");
     }
 

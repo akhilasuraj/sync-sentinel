@@ -29,7 +29,7 @@ public sealed class ConfigEndpointsTests : IDisposable
         var config = await app.GetTestClient().GetFromJsonAsync<SyncSentinelConfig>("/api/config");
 
         Assert.NotNull(config);
-        Assert.Contains(config!.FolderSets, s => s.Name == "DeveloperDefaults");
+        Assert.Contains(config!.FolderSets, s => s.Name == "Developer Defaults");
     }
 
     [Fact]

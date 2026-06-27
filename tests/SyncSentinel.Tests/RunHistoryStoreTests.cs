@@ -64,6 +64,19 @@ public sealed class RunHistoryStoreTests : IDisposable
     }
 
     [Fact]
+    public void Recent_returns_the_newest_runs_across_all_jobs_capped_at_the_limit()
+    {
+        var t0 = new DateTimeOffset(2026, 6, 26, 12, 0, 0, TimeSpan.Zero);
+        _store.Add(Run("a", "j1", t0));
+        _store.Add(Run("b", "j2", t0.AddMinutes(1)));
+        _store.Add(Run("c", "j1", t0.AddMinutes(2)));
+
+        var recent = _store.Recent(2);
+
+        Assert.Equal(["c", "b"], recent.Select(r => r.Id));
+    }
+
+    [Fact]
     public void ListByJob_only_returns_runs_for_that_job()
     {
         var t0 = new DateTimeOffset(2026, 6, 26, 12, 0, 0, TimeSpan.Zero);
