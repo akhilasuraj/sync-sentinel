@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { toggleId } from '../lib/forms'
 import type { FileExclusionSet, FolderExclusionSet, Job } from '../types'
 import PathField from './PathField'
 import FlagsEditor from './FlagsEditor'
+import SetSelector from './SetSelector'
 
 interface Props {
   job: Job
@@ -72,20 +72,20 @@ export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Picker label="Folder exclusion sets" empty="No folder sets yet">
-            {folderSets.map((s) => (
-              <Chip key={s.id} checked={form.folderSetIds.includes(s.id)} onClick={() => set('folderSetIds', toggleId(form.folderSetIds, s.id))}>
-                {s.name}
-              </Chip>
-            ))}
-          </Picker>
-          <Picker label="File exclusion sets" empty="No file sets yet">
-            {fileSets.map((s) => (
-              <Chip key={s.id} checked={form.fileSetIds.includes(s.id)} onClick={() => set('fileSetIds', toggleId(form.fileSetIds, s.id))}>
-                {s.name}
-              </Chip>
-            ))}
-          </Picker>
+          <SetSelector
+            label="Folder exclusion sets"
+            sets={folderSets}
+            selectedIds={form.folderSetIds}
+            onChange={(ids) => set('folderSetIds', ids)}
+            emptyLabel="No folder sets yet — create them in Exclusion Sets."
+          />
+          <SetSelector
+            label="File exclusion sets"
+            sets={fileSets}
+            selectedIds={form.fileSetIds}
+            onChange={(ids) => set('fileSetIds', ids)}
+            emptyLabel="No file sets yet — create them in Exclusion Sets."
+          />
         </div>
 
         <div className="mt-4">
@@ -116,30 +116,5 @@ export default function JobEditor({ job, folderSets, fileSets, onSaved, onCancel
         </div>
       </div>
     </div>
-  )
-}
-
-function Picker({ label, empty, children }: { label: string; empty: string; children: React.ReactNode }) {
-  const has = Array.isArray(children) ? children.length > 0 : !!children
-  return (
-    <div>
-      <span className="mb-1 block text-sm text-slate-400">{label}</span>
-      <div className="flex flex-wrap gap-2 rounded-lg border border-edge bg-panel-2 p-2 min-h-[44px]">
-        {has ? children : <span className="text-xs text-slate-600">{empty}</span>}
-      </div>
-    </div>
-  )
-}
-
-function Chip({ checked, onClick, children }: { checked: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-        checked ? 'bg-sentinel text-white' : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

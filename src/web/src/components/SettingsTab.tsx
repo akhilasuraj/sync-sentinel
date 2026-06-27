@@ -7,6 +7,7 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
   const [form, setForm] = useState<GlobalSettings>(settings)
   const [saving, setSaving] = useState(false)
   const set = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => setForm((f) => ({ ...f, [key]: value }))
+  const dirty = JSON.stringify(form) !== JSON.stringify(settings)
 
   async function save() {
     setSaving(true)
@@ -51,8 +52,9 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
         <span className="text-sm">Start automatically on login</span>
       </label>
 
-      <div className="mt-6">
-        <button className="btn" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button>
+      <div className="mt-6 flex items-center gap-2">
+        <button className="btn" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button>
+        {dirty && <button className="btn-ghost" disabled={saving} onClick={() => setForm(settings)}>Cancel</button>}
       </div>
     </section>
   )
