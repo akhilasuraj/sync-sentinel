@@ -41,9 +41,21 @@ ubiquitous language — use these terms exactly in code, issues, and docs.
 - **Loopback server** — the in-process ASP.NET Core (Kestrel) server bound to
   `127.0.0.1` on a random free port; never network-exposed. Serves the REST API,
   the SignalR hub, and the embedded React assets.
+- **Portable build** — the single self-contained `SyncSentinel.exe` that runs without
+  installation (no-install use). Self-extracts native libs to a temp dir on first run.
+- **Installer** — the per-user Inno Setup `SyncSentinel-Setup.exe` that lays SyncSentinel
+  into `%LOCALAPPDATA%\Programs\SyncSentinel` (no admin) and registers its uninstaller.
+  Its payload is the **installed build**.
+- **Installed build** — the multi-file self-contained layout the installer extracts; no
+  single-file self-extraction, so it starts faster than the **portable build**.
+- **Uninstall cleanup** — the app's own removal of its footprint, invoked by the
+  uninstaller: the `HKCU\…\Run` **autostart** entry is always removed; the
+  `%APPDATA%\SyncSentinel` data is removed only when the user confirms.
 
 ## Decisions
 
 Architecture and the alternatives weighed are recorded in
-[`docs/adr/0001-architecture.md`](docs/adr/0001-architecture.md). Record new
-cross-cutting decisions as further ADRs under `docs/adr/`.
+[`docs/adr/0001-architecture.md`](docs/adr/0001-architecture.md); the installer /
+uninstaller packaging decisions are in
+[`docs/adr/0002-installer-packaging.md`](docs/adr/0002-installer-packaging.md).
+Record new cross-cutting decisions as further ADRs under `docs/adr/`.

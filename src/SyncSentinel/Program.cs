@@ -20,21 +20,42 @@ internal static class Program
 {
     private const string MutexName = @"Local\SyncSentinel.SingleInstance";
     private const string ShowEventName = @"Local\SyncSentinel.Show";
+    private const string QuitEventName = @"Local\SyncSentinel.Quit";
 
     [STAThread]
     private static int Main(string[] args)
     {
         var smoke = args.Contains("--smoke");
+        var quit = args.Contains("--quit");
+
+        // --uninstall: remove the app's footprint (HKCU Run entry always; the data
+        // root when --purge-data) and exit. Invoked by the installer's uninstaller
+        // before it deletes files; no mutex, host, or window. The installer runs
+        // --quit first, so nothing holds the data locked.
+        if (args.Contains("--uninstall"))
+        {
+            new UninstallCleaner(StoragePaths.Default, new AutostartManager(Environment.ProcessPath!))
+                .Clean(purgeData: args.Contains("--purge-data"));
+            return 0;
+        }
 
         // Single instance: a second launch signals the running one to surface its
-        // window, then exits. (Skipped for the short-lived --smoke check.)
+        // window (or, under --quit, to exit), then exits itself. (Skipped for the
+        // short-lived --smoke check.)
         Mutex? mutex = null;
         if (!smoke)
         {
             mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
             if (!createdNew)
             {
-                try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { /* ignore */ }
+                try { EventWaitHandle.OpenExisting(quit ? QuitEventName : ShowEventName).Set(); } catch { /* ignore */ }
+                return 0;
+            }
+
+            // We are the only instance, so --quit has nothing to signal — just exit.
+            if (quit)
+            {
+                mutex.Dispose();
                 return 0;
             }
         }
@@ -98,13 +119,30 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         var form = new MainForm(url, startHidden: args.Contains("--tray"));
 
-        // Surface the window when a second instance signals us.
+        // React to a second launch: --quit asks us to exit, otherwise surface the
+        // window. (The installer/uninstaller use --quit to stop us cleanly before
+        // touching files, since closing the window only hides to tray.)
         using var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        using var quitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName);
         var listener = new Thread(() =>
         {
-            while (showEvent.WaitOne())
+            var handles = new WaitHandle[] { showEvent, quitEvent };
+            while (true)
             {
-                try { form.BeginInvoke(() => form.ShowExternally()); } catch { break; }
+                var signaled = WaitHandle.WaitAny(handles);
+                try
+                {
+                    if (signaled == 0)
+                    {
+                        form.BeginInvoke(() => form.ShowExternally());
+                    }
+                    else
+                    {
+                        form.BeginInvoke(() => form.ExitApplication());
+                        break;
+                    }
+                }
+                catch { break; }
             }
         })
         { IsBackground = true };

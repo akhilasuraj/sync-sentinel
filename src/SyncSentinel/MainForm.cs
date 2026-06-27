@@ -44,6 +44,17 @@ internal sealed class MainForm : Form
     /// <summary>Surface the window (called when a second instance is launched).</summary>
     public void ShowExternally() => ShowWindow();
 
+    /// <summary>
+    /// Request a real exit — bypasses close-to-tray. Called when a second launch
+    /// signals <c>--quit</c> (the installer/uninstaller stopping us before it
+    /// touches files).
+    /// </summary>
+    public void ExitApplication()
+    {
+        _exitRequested = true;
+        Close();
+    }
+
     private ContextMenuStrip BuildTrayMenu()
     {
         var menu = new ContextMenuStrip();
