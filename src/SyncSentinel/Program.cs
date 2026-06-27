@@ -61,6 +61,12 @@ internal static class Program
         // Auto-scheduling runs only in the real app (tests drive the scheduler
         // directly), so register the periodic tick here, not in ApiHost.
         builder.Services.AddHostedService<SchedulerTickService>();
+        // Override the no-op IAutostart with the registry-backed impl for real
+        // runs only; --smoke keeps the no-op so it can never touch the Run key.
+        if (!smoke)
+        {
+            builder.Services.AddSingleton<IAutostart>(new AutostartManager(Environment.ProcessPath!));
+        }
 
         var app = builder.Build();
         app.UseDefaultFiles();
@@ -80,10 +86,12 @@ internal static class Program
         }
 
         // Reconcile login autostart with the saved preference (best-effort).
+        // Reuses the DI-registered IAutostart so first launch / hand-edited config /
+        // exe-path drift are repaired even when the live toggle wasn't used.
         try
         {
             var settings = app.Services.GetRequiredService<ConfigService>().Current.Settings;
-            new AutostartManager(Environment.ProcessPath!).Apply(settings.Autostart);
+            app.Services.GetRequiredService<IAutostart>().Apply(settings.Autostart);
         }
         catch { /* autostart is non-essential */ }
 

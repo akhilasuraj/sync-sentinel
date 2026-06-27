@@ -4,12 +4,34 @@ using Microsoft.Win32;
 namespace SyncSentinel.Core;
 
 /// <summary>
+/// Neutral seam for toggling login autostart. The shell provides the Windows
+/// registry implementation (<see cref="AutostartManager"/>); the shared settings
+/// endpoint depends only on this interface so Core stays free of Windows-only
+/// types and tests can inject a fake.
+/// </summary>
+public interface IAutostart
+{
+    /// <summary>Set login autostart to match <paramref name="enabled"/>.</summary>
+    void Apply(bool enabled);
+}
+
+/// <summary>
+/// Default <see cref="IAutostart"/> that does nothing, registered in the shared
+/// wiring so the settings endpoint resolves under the in-memory TestServer and on
+/// non-Windows. The shell overrides it with <see cref="AutostartManager"/>.
+/// </summary>
+public sealed class NoOpAutostart : IAutostart
+{
+    public void Apply(bool enabled) { }
+}
+
+/// <summary>
 /// Toggles login autostart via the per-user registry Run key (no admin needed).
 /// The key path, value name and command are injectable so tests run against a
 /// throwaway key instead of the real Run key.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class AutostartManager
+public sealed class AutostartManager : IAutostart
 {
     public const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     public const string DefaultValueName = "SyncSentinel";

@@ -29,6 +29,8 @@ public static class ApiHost
         services.AddSingleton<ConfigService>();
         services.AddSingleton<RunQueue>();
         services.AddSingleton<Scheduler>();
+        // Default no-op; the shell overrides with the registry-backed AutostartManager.
+        services.AddSingleton<IAutostart, NoOpAutostart>();
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
         // SchedulerTickService (auto-schedule due jobs) is registered by the shell
         // only, so tests don't get surprise scheduled runs.
@@ -85,9 +87,13 @@ public static class ApiHost
             cfg.DeleteFileSet(id) ? Results.NoContent() : Results.NotFound());
 
         // ── Settings ──────────────────────────────────────────────────────────
-        app.MapPut("/api/settings", (GlobalSettings s, ConfigService cfg) =>
+        app.MapPut("/api/settings", (GlobalSettings s, ConfigService cfg, IAutostart autostart) =>
         {
             cfg.UpdateSettings(s);
+            // Apply the login-autostart preference immediately (best-effort: the
+            // settings are already persisted; autostart is non-essential).
+            try { autostart.Apply(s.Autostart); }
+            catch { /* autostart is non-essential */ }
             return Results.NoContent();
         });
 

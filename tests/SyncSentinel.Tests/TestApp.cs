@@ -14,7 +14,9 @@ namespace SyncSentinel.Tests;
 /// </summary>
 internal static class TestApp
 {
-    public static async Task<WebApplication> StartAsync(string? configDir = null)
+    public static async Task<WebApplication> StartAsync(
+        string? configDir = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -23,6 +25,9 @@ internal static class TestApp
         ApiHost.ConfigureServices(builder.Services);
         builder.Services.AddSingleton(new StoragePaths(
             configDir ?? Path.Combine(Path.GetTempPath(), "ss-testapp-" + Guid.NewGuid().ToString("N"))));
+        // Lets a test override a seam (e.g. a fake IAutostart) after the shared
+        // wiring; last registration wins.
+        configureServices?.Invoke(builder.Services);
 
         var app = builder.Build();
         ApiHost.MapEndpoints(app);

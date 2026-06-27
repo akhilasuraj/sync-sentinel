@@ -34,6 +34,10 @@ ubiquitous language — use these terms exactly in code, issues, and docs.
   time; other due jobs wait. **Run now** enqueues immediately / jumps the queue.
 - **Tray shell** — the thin WinForms host: system-tray icon + the WebView2 window.
   Closing the window hides to tray (scheduling continues); exit is via the tray menu.
+- **Autostart** — whether SyncSentinel launches automatically on Windows login, as a
+  per-user setting (no admin needed). Toggled in Settings; the change takes effect
+  **immediately**, not only at next launch, and the saved preference is reconciled with
+  the system on every startup.
 - **Loopback server** — the in-process ASP.NET Core (Kestrel) server bound to
   `127.0.0.1` on a random free port; never network-exposed. Serves the REST API,
   the SignalR hub, and the embedded React assets.
