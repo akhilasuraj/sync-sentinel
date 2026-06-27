@@ -8,7 +8,9 @@
 ;     (by the app's --uninstall), never written by this installer
 ;   - a running instance is stopped gracefully via `--quit` (closing its window only
 ;     hides to tray), with AppMutex as the fallback
-;   - WebView2 runtime: detect-and-warn (no bundling, no auto-download)
+;   - WebView2 runtime: detect-and-warn (no bundling, no auto-download); detection
+;     checks the EdgeUpdate registry keys AND the on-disk runtime folder, and the
+;     app itself warns at startup if the runtime can't start (see MainForm)
 ;
 ; Build locally (from the repo root):
 ;   dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -o publish-app
@@ -103,8 +105,19 @@ begin
   end;
 end;
 
+{ The Evergreen runtime lays its versioned payload under EdgeWebView\Application:
+  per-machine in Program Files (x86), or per-user in LocalAppData. Checking the
+  filesystem sidesteps the 32-/64-bit registry view/redirection quirks that can
+  otherwise hide a runtime that is actually present (the false-negative warning). }
+function WebView2OnDisk(): Boolean;
+begin
+  Result :=
+    DirExists(ExpandConstant('{pf32}\Microsoft\EdgeWebView\Application')) or
+    DirExists(ExpandConstant('{localappdata}\Microsoft\EdgeWebView\Application'));
+end;
+
 { WebView2 Runtime registers its version (pv) under HKLM (machine-wide install)
-  or HKCU (per-user install). }
+  or HKCU (per-user install). The on-disk check is the reliable fallback. }
 function WebView2Installed(): Boolean;
 var
   Pv: String;
@@ -114,7 +127,9 @@ begin
     or
     (RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + WebView2ClientKey, 'pv', Pv) and (Pv <> '') and (Pv <> '0.0.0.0'))
     or
-    (RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + WebView2ClientKey, 'pv', Pv) and (Pv <> '') and (Pv <> '0.0.0.0'));
+    (RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\' + WebView2ClientKey, 'pv', Pv) and (Pv <> '') and (Pv <> '0.0.0.0'))
+    or
+    WebView2OnDisk();
 end;
 
 function InitializeSetup(): Boolean;
