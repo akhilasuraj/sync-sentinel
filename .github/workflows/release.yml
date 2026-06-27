@@ -1,7 +1,7 @@
 name: Release
 
-# Push a version tag (e.g. v1.0.0) to build the single-file exe and publish a
-# GitHub release. Main pushes themselves only run CI.
+# Push a version tag (e.g. v1.0.0) to build the portable exe + the installer and
+# publish a GitHub release. Main pushes themselves only run CI.
 on:
   push:
     tags: ['v*']
@@ -42,10 +42,27 @@ jobs:
       - name: .NET tests (gate the release)
         run: dotnet test SyncSentinel.slnx -c Release
 
-      - name: Publish single-file exe
+      # Portable artifact: one self-contained file, no install (self-extracts at startup).
+      - name: Publish portable single-file exe
         run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
+
+      # Installer payload: a normal multi-file self-contained build (no single-file
+      # self-extraction, so the installed app starts faster). Inno packs publish-app.
+      - name: Publish multi-file build (installer payload)
+        run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -o publish-app
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      # The .iss defaults (PayloadDir=..\publish-app, OutputDir=.) resolve relative to
+      # installer\, so this packs ..\publish-app and writes installer\SyncSentinel-Setup.exe.
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}" -replace '^v',''
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer\SyncSentinel.iss
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" "publish/SyncSentinel.exe" --title "SyncSentinel ${{ github.ref_name }}" --generate-notes
+        run: gh release create "${{ github.ref_name }}" "publish/SyncSentinel.exe" "installer/SyncSentinel-Setup.exe" --title "SyncSentinel ${{ github.ref_name }}" --generate-notes
