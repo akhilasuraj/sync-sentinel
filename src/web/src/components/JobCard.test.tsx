@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import JobCard from './JobCard'
 import { blankJob, type Job } from '../types'
 import type { JobStatus } from '../lib/jobStatus'
@@ -59,5 +59,18 @@ describe('JobCard', () => {
     render(<JobCard job={job()} now={NOW} isRunning={false} onOpen={onOpen} onRun={noop} />)
     screen.getByText('PEMS').click()
     expect(onOpen).toHaveBeenCalledOnce()
+  })
+
+  it('opens on Enter on the card, but Enter on the Run button does not also open', () => {
+    const onOpen = vi.fn()
+    render(<JobCard job={job()} now={NOW} isRunning={false} onOpen={onOpen} onRun={noop} />)
+
+    // Enter on the nested Run button must not bubble up and open the job.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Run now' }), { key: 'Enter' })
+    expect(onOpen).not.toHaveBeenCalled()
+
+    // Enter on the card itself opens it.
+    fireEvent.keyDown(screen.getByRole('button', { name: /PEMS/ }), { key: 'Enter' })
+    expect(onOpen).toHaveBeenCalledTimes(1)
   })
 })

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import JobDetails from './JobDetails'
 import { blankJob } from '../types'
-import { IDLE } from '../lib/runState'
+import { IDLE, type RunInfo } from '../lib/runState'
 
 vi.mock('../api', () => ({
   api: {
@@ -33,6 +33,12 @@ const render_ = () =>
 
 describe('JobDetails history', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('shows the Live panel as soon as the job is running, before any output', () => {
+    const running: RunInfo = { state: 'running', jobId: 'j1', jobName: 'PEMS', exitCode: null, lines: [] }
+    render(<JobDetails job={job} now={Date.parse('2026-06-27T12:00:00Z')} run={running} isRunning onBack={noop} onRun={noop} onEdit={noop} onDelete={noop} />)
+    expect(screen.queryByText(/Not running/)).not.toBeInTheDocument()
+  })
 
   it('lists the job runs with their counts', async () => {
     render_()
