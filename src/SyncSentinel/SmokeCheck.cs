@@ -57,7 +57,9 @@ internal static class SmokeCheck
         try
         {
             var cfg = await http.GetStringAsync("/api/config");
-            var configOk = cfg.Contains("DeveloperDefaults");
+            // Anchor on the seed set's stable id, not its display name (which was
+            // renamed to "Developer Defaults").
+            var configOk = cfg.Contains("developer-defaults");
             ok &= configOk;
             Report($"[config] {(configOk ? "PASS" : "FAIL")}  seeded ({cfg.Length} bytes)");
         }
@@ -70,7 +72,7 @@ internal static class SmokeCheck
         try
         {
             // Create a real job (source under %TEMP%, excluding bin via the seeded
-            // DeveloperDefaults set), run it by id, and confirm the mirror.
+            // Developer Defaults set), run it by id, and confirm the mirror.
             var root = Path.Combine(Path.GetTempPath(), "SyncSentinelSmokeRun");
             var src = Path.Combine(root, "src");
             var dst = Path.Combine(root, "dst");
