@@ -83,7 +83,9 @@
   /* ── Nav ──────────────────────────────────────────────────────────────── */
   header.nav {
     position: sticky; top: 0; z-index: 50;
+    background: rgba(11, 14, 20, 0.9); /* fallback when color-mix / backdrop-filter is unsupported */
     background: color-mix(in srgb, var(--ink) 82%, transparent);
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--edge-soft);
   }
@@ -152,7 +154,8 @@
   .watch-log .ln .dim { color: var(--muted-2); }
 
   /* ── Generic section scaffolding ──────────────────────────────────────── */
-  section.band { padding: clamp(3.5rem, 7vw, 6rem) 0; }
+  /* scroll-margin keeps a jumped-to heading clear of the 64px sticky nav. */
+  section.band { padding: clamp(3.5rem, 7vw, 6rem) 0; scroll-margin-top: 80px; }
   .band-head { max-width: 46rem; }
   .band-head h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.7rem, 3.2vw, 2.4rem); letter-spacing: -0.02em; line-height: 1.1; margin: 0.8rem 0 0; }
   .band-head p { color: var(--muted); font-size: 1.05rem; margin: 0.9rem 0 0; }
@@ -277,7 +280,7 @@
       </div>
 
       <!-- The signature: a live sweep instrument -->
-      <div class="watch" id="watch" aria-label="A live demonstration of a scheduled backup run">
+      <div class="watch" id="watch" role="group" aria-label="A live demonstration of a scheduled backup run">
         <div class="watch-top">
           <span class="label">Next sweep</span>
           <span class="watch-state"><span class="dot" id="w-dot"></span><span id="w-state">scheduled</span></span>
