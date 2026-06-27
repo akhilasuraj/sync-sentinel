@@ -6,6 +6,7 @@ import type {
   RunRecord,
   SyncSentinelConfig,
 } from './types'
+import type { JobStatus } from './lib/jobStatus'
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -40,6 +41,9 @@ export const api = {
   // Does this folder exist? (Backs the editor's path hint.)
   pathExists: (path: string) =>
     fetch(`/api/path-exists?path=${encodeURIComponent(path)}`).then(json<{ exists: boolean }>),
+
+  // Per-job run-state feed: last-run status (dot colour) + next-due (countdown).
+  getJobStatuses: () => fetch('/api/jobs/status').then(json<JobStatus[]>),
 
   addJob: (j: Partial<Job>) => fetch('/api/jobs', post(j)).then(json<Job>),
   updateJob: (id: string, j: Job) => fetch(`/api/jobs/${id}`, put(j)),

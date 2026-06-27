@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { useHub, type RunState } from './useHub'
 import { blankJob, type Job, type SyncSentinelConfig } from './types'
+import type { JobStatus } from './lib/jobStatus'
 import JobCard from './components/JobCard'
 import JobEditor from './components/JobEditor'
 import JobHistory from './components/JobHistory'
@@ -24,11 +25,26 @@ export default function App() {
   const [editing, setEditing] = useState<Job | null>(null)
   const [historyJob, setHistoryJob] = useState<Job | null>(null)
   const [runningId, setRunningId] = useState<string | null>(null)
+  const [statuses, setStatuses] = useState<Record<string, JobStatus>>({})
+  const [now, setNow] = useState(() => Date.now())
   const logRef = useRef<HTMLPreElement>(null)
 
   const { connected, run } = useHub(() => setRunningId(null))
   const reload = useCallback(() => api.getConfig().then(setConfig), [])
+  const reloadStatuses = useCallback(
+    () => api.getJobStatuses().then((list) => setStatuses(Object.fromEntries(list.map((s) => [s.jobId, s])))),
+    [],
+  )
   useEffect(() => void reload(), [reload])
+
+  // Refresh the run-state feed on load and whenever a run starts/finishes.
+  useEffect(() => void reloadStatuses(), [reloadStatuses, run.state])
+
+  // Tick a shared clock so each card's next-run countdown stays live.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => {
     const el = logRef.current
@@ -81,6 +97,8 @@ export default function App() {
               <JobCard
                 key={job.id}
                 job={job}
+                status={statuses[job.id]}
+                now={now}
                 isRunning={runningId === job.id || (run.state === 'running' && run.jobName === job.name)}
                 onRun={() => runJob(job)}
                 onEdit={() => setEditing(job)}

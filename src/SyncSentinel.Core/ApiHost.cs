@@ -75,6 +75,25 @@ public static class ApiHost
         app.MapPost("/api/jobs/{id}/run", (string id, Scheduler scheduler) =>
             scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound());
 
+        // ── Per-job run-state feed (backs the card's status dot + countdown) ──
+        // Last-run status comes from the history store (persists across restarts);
+        // next-due is derived from that last finish via Schedule (stable across a
+        // restart, unlike the scheduler's in-memory anchor which forces catch-up).
+        app.MapGet("/api/jobs/status", (ConfigService cfg, RunHistoryStore history, RunQueue queue) =>
+            Results.Json(cfg.Current.Jobs.Select(j =>
+            {
+                var last = history.ListByJob(j.Id, 1).FirstOrDefault();
+                return new
+                {
+                    jobId = j.Id,
+                    lastStatus = last?.Status,
+                    nextDueUtc = j.Enabled ? Schedule.NextDue(j, last?.FinishedUtc) : (DateTimeOffset?)null,
+                    state = queue.Running == j.Id ? "Running"
+                        : queue.Pending.Contains(j.Id) ? "Queued"
+                        : "Idle",
+                };
+            })));
+
         // ── Run history ───────────────────────────────────────────────────────
         app.MapGet("/api/jobs/{id}/runs", (string id, RunHistoryStore history) =>
             Results.Json(history.ListByJob(id)));
