@@ -102,7 +102,7 @@ function Watch({ featured, now, onOpen }: { featured: { job: Job; status: JobSta
       <Ring
         progress={progress}
         label={running ? 'scan' : clockCountdown(featured.status.nextDueUtc ?? '', now)}
-        sub={running ? 'scanning' : 'to next sweep'}
+        sub={running ? 'scanning' : 'to next'}
         pulse={running}
       />
       <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -161,9 +161,14 @@ function Ring({ progress, label, sub, pulse }: { progress: number; label: string
           style={{ transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
-      <div className="absolute text-center">
-        <div className="font-mono text-[28px] font-semibold tabular-nums text-slate-100">{label}</div>
-        <div className="eyebrow mt-1">{sub}</div>
+      {/* Fill the ring and dead-center an inner box capped at the ring's clear
+          area (~104px) so the readout never spills past the stroke — even for a
+          7-char H:MM:SS countdown. */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="flex w-[104px] flex-col items-center text-center leading-none">
+          <div className="font-mono text-[24px] font-semibold tabular-nums text-slate-100">{label}</div>
+          <div className="mt-1.5 font-mono text-[10px] font-semibold tracking-[0.08em] text-slate-500 uppercase leading-tight">{sub}</div>
+        </div>
       </div>
     </div>
   )
