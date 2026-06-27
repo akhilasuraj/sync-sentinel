@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fleetSummary, nextUp } from './dashboard'
+import { fleetSummary, nextUp, ringLabelSizeClass } from './dashboard'
 import { blankJob, type Job } from '../types'
 import type { JobStatus } from './jobStatus'
 
@@ -40,5 +40,20 @@ describe('nextUp', () => {
   it('returns null when nothing is running or scheduled', () => {
     const jobs = [job('a', { enabled: false })]
     expect(nextUp(jobs, { a: st({ jobId: 'a' }) }, now)).toBeNull()
+  })
+})
+
+describe('ringLabelSizeClass', () => {
+  it('uses the largest size for short readouts (MM:SS, "scan", "Due")', () => {
+    expect(ringLabelSizeClass('08:03')).toBe('text-[24px]')
+    expect(ringLabelSizeClass('Due')).toBe('text-[24px]')
+  })
+
+  it('shrinks for an H:MM:SS countdown', () => {
+    expect(ringLabelSizeClass('1:04:05')).toBe('text-[20px]')
+  })
+
+  it('shrinks further for a multi-digit-hours countdown so it still fits the ring', () => {
+    expect(ringLabelSizeClass('10:00:00')).toBe('text-[16px]')
   })
 })

@@ -25,6 +25,18 @@ export interface NextUp {
   status: JobStatus
 }
 
+/**
+ * Font-size class for the watch-ring countdown. The ring's clear area is ~104px,
+ * so longer readouts shrink to stay inside the stroke: MM:SS at full size,
+ * H:MM:SS smaller, multi-digit hours (e.g. "10:00:00") smaller still — no cap on
+ * hours in clockCountdown, so size by length rather than assume a max width.
+ */
+export function ringLabelSizeClass(label: string): string {
+  if (label.length <= 5) return 'text-[24px]'
+  if (label.length <= 7) return 'text-[20px]'
+  return 'text-[16px]'
+}
+
 /** The job to feature on the watch hero: the running one, else the soonest due. */
 export function nextUp(jobs: Job[], statusById: Record<string, JobStatus>, _now: number): NextUp | null {
   const paired = jobs
