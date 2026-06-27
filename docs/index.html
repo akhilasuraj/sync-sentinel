@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SyncSentinel — scheduled robocopy mirroring for your dev folders</title>
-<meta name="description" content="A Windows tray app that quietly mirrors your local dev folders to OneDrive-synced safety on a schedule, using robocopy — with reusable exclusion sets, live run status, and history." />
+<title>SyncSentinel — scheduled folder mirroring for Windows</title>
+<meta name="description" content="A Windows tray app that periodically mirrors a source folder to a destination using robocopy — with reusable exclusion sets, live run status, and history." />
 <meta name="theme-color" content="#0b0e14" />
 <meta property="og:title" content="SyncSentinel" />
-<meta property="og:description" content="Stands watch over your dev folders and sweeps them to safety on a schedule — robocopy, scheduled, with an elegant tray UI." />
+<meta property="og:description" content="Copies a source folder to a destination on a schedule — robocopy, scheduled, with an elegant tray UI." />
 <meta property="og:type" content="website" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%236e7bf2' stroke-width='1.4' opacity='.4'/%3E%3Cpath d='M12 12 L12 4 A8 8 0 0 1 19 9 Z' fill='%236e7bf2'/%3E%3Ccircle cx='12' cy='12' r='2.1' fill='%236e7bf2'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -264,8 +264,8 @@
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <span class="eyebrow">Windows · tray app · robocopy</span>
-        <h1>Stands watch over your <span class="accent">dev folders.</span></h1>
-        <p class="lede">SyncSentinel mirrors your local projects to OneDrive-synced safety on a schedule — robocopy doing the work, an elegant tray UI keeping you posted.</p>
+        <h1>Stands watch over the folders <span class="accent">you can't lose.</span></h1>
+        <p class="lede">SyncSentinel mirrors any source folder to its destination on a schedule — robocopy doing the work, an elegant tray UI keeping you posted.</p>
         <div class="hero-cta">
           <a class="btn btn-primary" href="#download">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
@@ -297,8 +297,8 @@
             </div>
           </div>
           <div class="ring-side">
-            <div class="job">PEMS Backup</div>
-            <div class="path">C:\dev\PEMS <span class="arrow">→</span> OneDrive\Backup\PEMS</div>
+            <div class="job">Documents Backup</div>
+            <div class="path">C:\Users\me\Documents <span class="arrow">→</span> D:\Backups\Documents</div>
           </div>
         </div>
         <div class="watch-log" id="w-log" aria-hidden="true"></div>
@@ -324,7 +324,7 @@
         <div class="card reveal">
           <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></div>
           <h3>Reusable exclusion sets</h3>
-          <p>Define <code>bin</code>, <code>obj</code>, <code>node_modules</code> once and attach the set to any job. Folder names feed robocopy <code>/XD</code>; file patterns feed <code>/XF</code>.</p>
+          <p>Define the folders and patterns you never want copied — caches, temp files, build output — once, and attach the set to any job. Folder names feed robocopy <code>/XD</code>; file patterns feed <code>/XF</code>.</p>
           <span class="micro">composable · union of every attached set</span>
         </div>
         <div class="card reveal">
@@ -365,10 +365,10 @@
               <div class="sp-tile"><div class="n warn">1</div><div class="k">Needs attention</div></div>
             </div>
             <div class="sp-act">
-              <div class="row"><span class="dot ok"></span><span class="nm">PEMS Backup</span><span class="ct">12 copied · 0 failed</span><span class="tm">10:32</span></div>
-              <div class="row"><span class="dot ok"></span><span class="nm">Docs</span><span class="ct">0 copied · 0 failed</span><span class="tm">10:30</span></div>
-              <div class="row"><span class="dot" style="background:var(--amber)"></span><span class="nm">UserSecrets</span><span class="ct">warning · 1 skipped</span><span class="tm">10:15</span></div>
-              <div class="row"><span class="dot ok"></span><span class="nm">Designs</span><span class="ct">48 copied · 0 failed</span><span class="tm">09:58</span></div>
+              <div class="row"><span class="dot ok"></span><span class="nm">Documents</span><span class="ct">12 copied · 0 failed</span><span class="tm">10:32</span></div>
+              <div class="row"><span class="dot ok"></span><span class="nm">Projects</span><span class="ct">0 copied · 0 failed</span><span class="tm">10:30</span></div>
+              <div class="row"><span class="dot" style="background:var(--amber)"></span><span class="nm">Reports</span><span class="ct">warning · 1 skipped</span><span class="tm">10:15</span></div>
+              <div class="row"><span class="dot ok"></span><span class="nm">Photos</span><span class="ct">48 copied · 0 failed</span><span class="tm">09:58</span></div>
             </div>
           </div>
         </div>
@@ -435,7 +435,7 @@
 
 <footer>
   <div class="wrap foot">
-    <span>SyncSentinel — generalizes a personal project-backup robocopy tool into a UI-driven, scheduled app.</span>
+    <span>SyncSentinel — periodic source-to-destination folder mirroring for Windows, powered by robocopy.</span>
     <span class="links">
       <a href="https://github.com/akhilasuraj/sync-sentinel">GitHub</a>
       <a href="https://github.com/akhilasuraj/sync-sentinel/releases">Releases</a>
@@ -457,11 +457,11 @@
     var C = 439.8; // 2πr, r=70
 
     var lines = [
-      { c: 'cmd', t: '> robocopy C:\\dev\\PEMS  OneDrive\\Backup\\PEMS /MIR /XJ /R:3' },
-      { t: '  New File      readme.md' },
-      { t: '  New File      src\\App.tsx' },
-      { t: '  Newer         package.json' },
-      { t: '  <span class="dim">*EXTRA Dir     -obj\\</span>' },
+      { c: 'cmd', t: '> robocopy C:\\Users\\me\\Documents  D:\\Backups\\Documents /MIR /XJ /R:3' },
+      { t: '  New File      invoice-q3.pdf' },
+      { t: '  New File      photos\\trip.jpg' },
+      { t: '  Newer         budget.xlsx' },
+      { t: '  <span class="dim">*EXTRA Dir     -~tmp\\</span>' },
       { t: '  Files :   12    12     0     0     0     0' },
       { c: 'ok', t: '✓ Success · exit 1 · 12 copied · 0 failed' },
     ];
