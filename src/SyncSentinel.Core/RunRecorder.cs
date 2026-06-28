@@ -32,33 +32,8 @@ public sealed class RunRecorder
         string jobId, string jobName,
         DateTimeOffset started, DateTimeOffset finished,
         RobocopyStatus status, int exitCode,
-        IReadOnlyList<string> lines)
-    {
-        var id = _newId();
-        var logPath = Path.Combine(_logsDir, jobId, $"{finished:yyyyMMdd_HHmmss}_{id}.log");
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        File.WriteAllLines(logPath, lines);
-
-        var summary = RobocopySummary.Parse(lines);
-        var record = new RunRecord
-        {
-            Id = id,
-            JobId = jobId,
-            JobName = jobName,
-            Status = status.ToString(),
-            StartedUtc = started,
-            FinishedUtc = finished,
-            FilesCopied = summary.FilesCopied,
-            FilesSkipped = summary.FilesSkipped,
-            FilesFailed = summary.FilesFailed,
-            FilesExtra = summary.FilesExtra,
-            ExitCode = exitCode,
-            LogPath = logPath,
-        };
-        _history.Add(record);
-        Prune();
-        return record;
-    }
+        IReadOnlyList<string> lines) =>
+        Write(jobId, jobName, status.ToString(), started, finished, exitCode, lines, RobocopySummary.Parse(lines));
 
     /// <summary>
     /// Record a run that never invoked robocopy because a precondition failed
@@ -66,22 +41,35 @@ public sealed class RunRecorder
     /// "Skipped" and the reason as its log, so it surfaces in history like any
     /// other run. Exit code -1 marks "robocopy was not run".
     /// </summary>
-    public RunRecord RecordSkipped(string jobId, string jobName, string reason, DateTimeOffset when)
+    public RunRecord RecordSkipped(string jobId, string jobName, string reason, DateTimeOffset when) =>
+        Write(jobId, jobName, "Skipped", when, when, exitCode: -1, [$"Skipped: {reason}"], RobocopySummary.Empty);
+
+    // The shared spine for both record paths: stamp an id, write the per-job .log,
+    // store the row with the supplied counts, and prune per retention. Record parses
+    // its counts from robocopy's output; RecordSkipped passes Empty (it never ran).
+    private RunRecord Write(
+        string jobId, string jobName, string status,
+        DateTimeOffset started, DateTimeOffset finished,
+        int exitCode, IReadOnlyList<string> lines, RobocopySummary summary)
     {
         var id = _newId();
-        var logPath = Path.Combine(_logsDir, jobId, $"{when:yyyyMMdd_HHmmss}_{id}.log");
+        var logPath = Path.Combine(_logsDir, jobId, $"{finished:yyyyMMdd_HHmmss}_{id}.log");
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        File.WriteAllLines(logPath, [$"Skipped: {reason}"]);
+        File.WriteAllLines(logPath, lines);
 
         var record = new RunRecord
         {
             Id = id,
             JobId = jobId,
             JobName = jobName,
-            Status = "Skipped",
-            StartedUtc = when,
-            FinishedUtc = when,
-            ExitCode = -1,
+            Status = status,
+            StartedUtc = started,
+            FinishedUtc = finished,
+            FilesCopied = summary.FilesCopied,
+            FilesSkipped = summary.FilesSkipped,
+            FilesFailed = summary.FilesFailed,
+            FilesExtra = summary.FilesExtra,
+            ExitCode = exitCode,
             LogPath = logPath,
         };
         _history.Add(record);
