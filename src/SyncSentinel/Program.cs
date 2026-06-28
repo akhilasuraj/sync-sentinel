@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Threading;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -70,6 +71,13 @@ internal static class Program
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0"); // loopback only, OS-assigned port
         ApiHost.ConfigureServices(builder.Services);
+
+        // Surface the real, build-stamped version in the UI (overrides the dev
+        // default registered by ApiHost). Strip any SourceLink "+metadata" suffix.
+        var stamped = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var version = string.IsNullOrWhiteSpace(stamped) ? AppVersion.Dev : stamped.Split('+')[0];
+        builder.Services.AddSingleton(new AppVersion(version));
 
         var paths = smoke
             ? new StoragePaths(Path.Combine(Path.GetTempPath(), "SyncSentinelSmoke"))

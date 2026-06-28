@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { api } from '../api'
 
 export type Route = 'dashboard' | 'jobs' | 'sets' | 'settings'
 
@@ -17,6 +18,11 @@ const NAV: { key: Route; label: string; icon: ReactNode }[] = [
 
 /** The left rail: brand mark, primary navigation, and the live watch indicator. */
 export default function Sidebar({ route, onNavigate, connected }: Props) {
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    api.getVersion().then(setVersion).catch(() => {})
+  }, [])
+
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-edge bg-panel-2 px-3 py-5">
       <div className="flex items-center gap-2.5 px-2">
@@ -45,9 +51,12 @@ export default function Sidebar({ route, onNavigate, connected }: Props) {
         })}
       </nav>
 
-      <div className="mt-auto flex items-center gap-2 px-2 pt-4 text-xs">
-        <span className={`h-2 w-2 rounded-full ${connected ? 'animate-pulse bg-green-500' : 'bg-slate-600'}`} />
-        <span className="font-mono tracking-wide text-slate-500">{connected ? 'watching' : 'offline'}</span>
+      <div className="mt-auto px-2 pt-4">
+        <div className="flex items-center gap-2 text-xs">
+          <span className={`h-2 w-2 rounded-full ${connected ? 'animate-pulse bg-green-500' : 'bg-slate-600'}`} />
+          <span className="font-mono tracking-wide text-slate-500">{connected ? 'watching' : 'offline'}</span>
+        </div>
+        {version && <div className="mt-1.5 font-mono text-[11px] text-slate-600">v{version}</div>}
       </div>
     </aside>
   )

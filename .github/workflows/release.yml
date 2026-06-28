@@ -42,14 +42,21 @@ jobs:
       - name: .NET tests (gate the release)
         run: dotnet test SyncSentinel.slnx -c Release
 
+      # The version is the tag without its leading "v" (e.g. v0.5.0 -> 0.5.0). Used
+      # to stamp the assembly (shown in-app) and to version the installer.
+      - name: Resolve version from tag
+        id: ver
+        shell: pwsh
+        run: "echo \"version=$('${{ github.ref_name }}' -replace '^v','')\" >> $env:GITHUB_OUTPUT"
+
       # Portable artifact: one self-contained file, no install (self-extracts at startup).
       - name: Publish portable single-file exe
-        run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
+        run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o publish
 
       # Installer payload: a normal multi-file self-contained build (no single-file
       # self-extraction, so the installed app starts faster). Inno packs publish-app.
       - name: Publish multi-file build (installer payload)
-        run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -o publish-app
+        run: dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:Version=${{ steps.ver.outputs.version }} -o publish-app
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
@@ -58,9 +65,7 @@ jobs:
       # installer\, so this packs ..\publish-app and writes installer\SyncSentinel-Setup.exe.
       - name: Build installer (Inno Setup)
         shell: pwsh
-        run: |
-          $ver = "${{ github.ref_name }}" -replace '^v',''
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$ver installer\SyncSentinel.iss
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.version }} installer\SyncSentinel.iss'
 
       - name: Create GitHub release
         env:
