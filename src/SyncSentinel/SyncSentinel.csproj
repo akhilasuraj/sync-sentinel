@@ -13,6 +13,10 @@
          version into the assembly (read back at runtime for the in-app display). -->
     <Version>0.0.0-dev</Version>
 
+    <!-- App icon (Explorer / taskbar / installer's UninstallDisplayIcon). The
+         master lives in assets/; referenced here so there's no duplicate copy. -->
+    <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
+
     <!-- Single-file publish hints (effective only on `dotnet publish`): bundle the
          native WebView2 loader + SQLite into the one exe and compress it. The RID
          and self-contained flag are passed on the publish command, not pinned
@@ -45,6 +49,14 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SyncSentinel.Core\SyncSentinel.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Embed the multi-resolution icon so the tray + window load it at runtime
+       (crisp at every DPI). Same file as ApplicationIcon, named for loading. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\assets\icon.ico">
+      <LogicalName>SyncSentinel.app.ico</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- Convenience: build the React app if it hasn't been built yet (fresh
