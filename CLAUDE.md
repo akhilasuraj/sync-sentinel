@@ -99,6 +99,12 @@ dotnet publish src/SyncSentinel -c Release -r win-x64 --self-contained -p:Publis
   at a time). The runner is covered by a real-filesystem integration test (real
   robocopy on scratch dirs — no mocking, matching project-backup's philosophy). Only
   the inherently-GUI glue (WinForms/WebView2) is verified by `--smoke` + a real run.
+- **Verify before committing.** Run `dotnet test` (plus `npm --prefix src/web test`
+  for web changes) before every commit. Additionally run the headless smoke check —
+  `dotnet run --project src/SyncSentinel -- --smoke` (expect exit 0) — before
+  committing anything that touches the host/shell/static-serving/runner path, and
+  always before tagging a release. It exercises the real Kestrel host, static serving
+  of the React build, and a real robocopy run, which the in-memory tests don't cover.
 - Build is incremental by phase (walking skeleton → one real run → CRUD → scheduler →
   history → packaging); each phase is a reviewable commit. See `DESIGN.md`.
 
