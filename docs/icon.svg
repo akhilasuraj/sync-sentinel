@@ -1,0 +1,87 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+
+    <!-- Glow -->
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Sweep gradient -->
+    <radialGradient id="sweepGradient" cx="50%" cy="50%">
+      <stop offset="0%" stop-color="#6E7BF2" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#6E7BF2" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Fade the wedge -->
+    <linearGradient id="fade" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6E7BF2" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#6E7BF2" stop-opacity="0.55"/>
+    </linearGradient>
+
+  </defs>
+
+  <!-- Outer Ring -->
+  <circle
+      cx="512"
+      cy="512"
+      r="345"
+      fill="none"
+      stroke="#6E7BF2"
+      stroke-width="10"
+      filter="url(#glow)" />
+
+  <!-- Inner Guide Ring -->
+  <circle
+      cx="512"
+      cy="512"
+      r="228"
+      fill="none"
+      stroke="#6E7BF2"
+      stroke-width="3"
+      opacity="0.18"/>
+
+  <!-- Inner Guide Ring -->
+  <circle
+      cx="512"
+      cy="512"
+      r="150"
+      fill="none"
+      stroke="#6E7BF2"
+      stroke-width="3"
+      opacity="0.18"/>
+
+  <!-- Radar Sweep -->
+  <path
+      d="
+      M512 512
+      L512 170
+      A342 342 0 0 1 754 270
+      Z"
+      fill="url(#fade)"
+      filter="url(#glow)"/>
+
+  <!-- Sweep Beam -->
+  <line
+      x1="512"
+      y1="512"
+      x2="754"
+      y2="270"
+      stroke="#6E7BF2"
+      stroke-width="2"
+      opacity="0.7"/>
+
+  <!-- Center Glow -->
+  <circle
+      cx="512"
+      cy="512"
+      r="42"
+      fill="#6E7BF2"
+      filter="url(#glow)"/>
+
+</svg>

@@ -30,6 +30,9 @@ internal sealed class MainForm : Form
         Height = 700;
         StartPosition = FormStartPosition.CenterScreen;
 
+        var appIcon = LoadAppIcon();
+        Icon = appIcon; // window + taskbar
+
         var web = new WebView2 { Dock = DockStyle.Fill };
         web.CoreWebView2InitializationCompleted += OnWebViewInitialized;
         Controls.Add(web);
@@ -38,11 +41,19 @@ internal sealed class MainForm : Form
         _tray = new NotifyIcon
         {
             Text = "SyncSentinel",
-            Icon = SystemIcons.Application,
+            Icon = appIcon,
             Visible = true,
             ContextMenuStrip = BuildTrayMenu(),
         };
         _tray.DoubleClick += (_, _) => ShowWindow();
+    }
+
+    // Load the embedded app icon (multi-resolution .ico); fall back to the system
+    // icon if it's somehow missing, so the app never fails to start over an icon.
+    private static Icon LoadAppIcon()
+    {
+        using var stream = typeof(MainForm).Assembly.GetManifestResourceStream("SyncSentinel.app.ico");
+        return stream is null ? SystemIcons.Application : new Icon(stream);
     }
 
     // Keeps the window hidden on startup under --tray until something shows it.

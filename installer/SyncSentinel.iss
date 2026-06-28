@@ -48,6 +48,8 @@ DefaultDirName={localappdata}\Programs\{#AppName}
 DisableProgramGroupPage=yes
 DisableDirPage=auto
 UninstallDisplayIcon={app}\{#AppExeName}
+; The setup wizard's own icon (the installer .exe + wizard chrome).
+SetupIconFile=..\assets\icon.ico
 ; Stop / detect a running instance via the app's single-instance mutex (fallback
 ; to the proactive --quit in [Code] for app versions that understand it).
 AppMutex=Local\SyncSentinel.SingleInstance
