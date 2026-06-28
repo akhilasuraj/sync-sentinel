@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Threading.Tasks;
 using SyncSentinel.Core;
 
 namespace SyncSentinel;
@@ -39,6 +40,31 @@ internal sealed class ShellAppMaintenance : IAppMaintenance
 
         // Quit on the UI thread; this releases the host + history.db so the helper's
         // retry can complete the deletion.
-        _form?.BeginInvoke(() => _form!.ExitApplication());
+        var quitting = false;
+        try
+        {
+            if (_form is { IsHandleCreated: true })
+            {
+                _form.BeginInvoke(() => _form!.ExitApplication());
+                quitting = true;
+            }
+        }
+        catch
+        {
+            // Fall through to the force-exit backstop below.
+        }
+
+        // Backstop: if we couldn't quit gracefully (no window / BeginInvoke failed),
+        // force-exit shortly after — by then the 202 response has flushed — so the
+        // helper's retry finds history.db unlocked. The exit also frees the lock
+        // even if graceful shutdown stalls.
+        if (!quitting)
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(800);
+                Environment.Exit(0);
+            });
+        }
     }
 }

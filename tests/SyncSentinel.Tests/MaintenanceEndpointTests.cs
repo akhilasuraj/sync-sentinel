@@ -17,7 +17,13 @@ public sealed class MaintenanceEndpointTests : IDisposable
 
     public MaintenanceEndpointTests() => Directory.CreateDirectory(_scratch);
 
-    public void Dispose() => Directory.Delete(_scratch, recursive: true);
+    public void Dispose()
+    {
+        if (Directory.Exists(_scratch))
+        {
+            Directory.Delete(_scratch, recursive: true);
+        }
+    }
 
     private sealed class RecordingMaintenance : IAppMaintenance
     {

@@ -34,12 +34,18 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
     setConfirming(false)
     setWiping(true)
     setWipeError(false)
-    const res = await api.wipeData()
-    if (!res.ok) {
+    try {
+      const res = await api.wipeData()
+      if (!res.ok) {
+        setWiping(false)
+        setWipeError(true)
+      }
+      // On success the app removes its data and exits — this window closes shortly.
+    } catch {
+      // Network error / request aborted — surface it instead of hanging on "Removing…".
       setWiping(false)
       setWipeError(true)
     }
-    // On success the app removes its data and exits — this window closes shortly.
   }
 
   return (
