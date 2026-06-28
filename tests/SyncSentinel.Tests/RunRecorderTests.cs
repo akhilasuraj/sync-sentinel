@@ -65,6 +65,20 @@ public sealed class RunRecorderTests : IDisposable
     }
 
     [Fact]
+    public void RecordSkipped_records_exit_code_minus_one_and_zero_counts()
+    {
+        var rec = NewRecorder();
+
+        var record = rec.RecordSkipped("job1", "PEMS", "Source folder not found: C:\\nope", _now);
+
+        Assert.Equal(-1, record.ExitCode); // marks "robocopy was not run"
+        Assert.Equal(0, record.FilesCopied);
+        Assert.Equal(0, record.FilesSkipped);
+        Assert.Equal(0, record.FilesFailed);
+        Assert.Equal(0, record.FilesExtra);
+    }
+
+    [Fact]
     public void Record_prunes_history_beyond_retention_and_deletes_old_log_files()
     {
         _config.UpdateSettings(_config.Current.Settings with { Retention = new RetentionSettings { RunsPerJob = 1, Days = 3650 } });
