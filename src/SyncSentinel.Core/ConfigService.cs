@@ -5,7 +5,9 @@ namespace SyncSentinel.Core;
 /// <see cref="ConfigStore"/>. Loads on construction (seeding on first run) and
 /// persists after every mutation. CRUD for jobs and exclusion sets, plus
 /// settings updates and resolving a job to its effective <see cref="BackupJob"/>.
-/// Mutations are serialized so concurrent API calls stay consistent.
+/// The id-keyed CRUD invariants live in <see cref="KeyedCollection"/>; each public
+/// method is a thin, named pass-through naming its collection. Mutations are
+/// serialized so concurrent API calls stay consistent.
 /// </summary>
 public sealed class ConfigService
 {
@@ -26,42 +28,9 @@ public sealed class ConfigService
 
     // ── Jobs ────────────────────────────────────────────────────────────────
 
-    public Job AddJob(Job job)
-    {
-        lock (_gate)
-        {
-            var withId = string.IsNullOrEmpty(job.Id) ? job with { Id = NewId() } : job;
-            Mutate(_config with { Jobs = [.. _config.Jobs, withId] });
-            return withId;
-        }
-    }
-
-    public bool UpdateJob(Job job)
-    {
-        lock (_gate)
-        {
-            if (!_config.Jobs.Any(j => j.Id == job.Id))
-            {
-                return false;
-            }
-            Mutate(_config with { Jobs = [.. _config.Jobs.Select(j => j.Id == job.Id ? job : j)] });
-            return true;
-        }
-    }
-
-    public bool DeleteJob(string id)
-    {
-        lock (_gate)
-        {
-            var kept = _config.Jobs.Where(j => j.Id != id).ToList();
-            if (kept.Count == _config.Jobs.Count)
-            {
-                return false;
-            }
-            Mutate(_config with { Jobs = kept });
-            return true;
-        }
-    }
+    public Job AddJob(Job job) => Add(job, c => c.Jobs, (c, x) => c with { Jobs = x });
+    public bool UpdateJob(Job job) => Update(job, c => c.Jobs, (c, x) => c with { Jobs = x });
+    public bool DeleteJob(string id) => Delete<Job>(id, c => c.Jobs, (c, x) => c with { Jobs = x });
 
     public BackupJob? ResolveJob(string id)
     {
@@ -74,81 +43,15 @@ public sealed class ConfigService
 
     // ── Folder exclusion sets ────────────────────────────────────────────────
 
-    public FolderExclusionSet AddFolderSet(FolderExclusionSet set)
-    {
-        lock (_gate)
-        {
-            var withId = string.IsNullOrEmpty(set.Id) ? set with { Id = NewId() } : set;
-            Mutate(_config with { FolderSets = [.. _config.FolderSets, withId] });
-            return withId;
-        }
-    }
-
-    public bool UpdateFolderSet(FolderExclusionSet set)
-    {
-        lock (_gate)
-        {
-            if (!_config.FolderSets.Any(s => s.Id == set.Id))
-            {
-                return false;
-            }
-            Mutate(_config with { FolderSets = [.. _config.FolderSets.Select(s => s.Id == set.Id ? set : s)] });
-            return true;
-        }
-    }
-
-    public bool DeleteFolderSet(string id)
-    {
-        lock (_gate)
-        {
-            var kept = _config.FolderSets.Where(s => s.Id != id).ToList();
-            if (kept.Count == _config.FolderSets.Count)
-            {
-                return false;
-            }
-            Mutate(_config with { FolderSets = kept });
-            return true;
-        }
-    }
+    public FolderExclusionSet AddFolderSet(FolderExclusionSet set) => Add(set, c => c.FolderSets, (c, x) => c with { FolderSets = x });
+    public bool UpdateFolderSet(FolderExclusionSet set) => Update(set, c => c.FolderSets, (c, x) => c with { FolderSets = x });
+    public bool DeleteFolderSet(string id) => Delete<FolderExclusionSet>(id, c => c.FolderSets, (c, x) => c with { FolderSets = x });
 
     // ── File exclusion sets ──────────────────────────────────────────────────
 
-    public FileExclusionSet AddFileSet(FileExclusionSet set)
-    {
-        lock (_gate)
-        {
-            var withId = string.IsNullOrEmpty(set.Id) ? set with { Id = NewId() } : set;
-            Mutate(_config with { FileSets = [.. _config.FileSets, withId] });
-            return withId;
-        }
-    }
-
-    public bool UpdateFileSet(FileExclusionSet set)
-    {
-        lock (_gate)
-        {
-            if (!_config.FileSets.Any(s => s.Id == set.Id))
-            {
-                return false;
-            }
-            Mutate(_config with { FileSets = [.. _config.FileSets.Select(s => s.Id == set.Id ? set : s)] });
-            return true;
-        }
-    }
-
-    public bool DeleteFileSet(string id)
-    {
-        lock (_gate)
-        {
-            var kept = _config.FileSets.Where(s => s.Id != id).ToList();
-            if (kept.Count == _config.FileSets.Count)
-            {
-                return false;
-            }
-            Mutate(_config with { FileSets = kept });
-            return true;
-        }
-    }
+    public FileExclusionSet AddFileSet(FileExclusionSet set) => Add(set, c => c.FileSets, (c, x) => c with { FileSets = x });
+    public bool UpdateFileSet(FileExclusionSet set) => Update(set, c => c.FileSets, (c, x) => c with { FileSets = x });
+    public bool DeleteFileSet(string id) => Delete<FileExclusionSet>(id, c => c.FileSets, (c, x) => c with { FileSets = x });
 
     // ── Settings ─────────────────────────────────────────────────────────────
 
@@ -161,6 +64,58 @@ public sealed class ConfigService
     }
 
     // ── internals ────────────────────────────────────────────────────────────
+
+    // Each CRUD pair is the same shape over a different collection: read the
+    // current list (under the gate), apply the keyed-collection invariant, then
+    // persist via the caller's setter. The named public methods just supply the
+    // get/set pair, so a new collection type costs three one-liners, not three
+    // hand-written method bodies.
+    private T Add<T>(
+        T item,
+        Func<SyncSentinelConfig, IReadOnlyList<T>> get,
+        Func<SyncSentinelConfig, IReadOnlyList<T>, SyncSentinelConfig> set)
+        where T : IIdentified<T>
+    {
+        lock (_gate)
+        {
+            var (items, added) = KeyedCollection.Add(get(_config), item, NewId);
+            Mutate(set(_config, items));
+            return added;
+        }
+    }
+
+    private bool Update<T>(
+        T item,
+        Func<SyncSentinelConfig, IReadOnlyList<T>> get,
+        Func<SyncSentinelConfig, IReadOnlyList<T>, SyncSentinelConfig> set)
+        where T : IIdentified<T> =>
+        Apply(c => KeyedCollection.Update(get(c), item), set);
+
+    private bool Delete<T>(
+        string id,
+        Func<SyncSentinelConfig, IReadOnlyList<T>> get,
+        Func<SyncSentinelConfig, IReadOnlyList<T>, SyncSentinelConfig> set)
+        where T : IIdentified<T> =>
+        Apply(c => KeyedCollection.Delete(get(c), id), set);
+
+    // Read-modify-write under the gate: compute the next list from the current
+    // config; false (not-found) when nothing changed, otherwise persist. Keeping
+    // the read and the write inside one lock keeps concurrent CRUD consistent.
+    private bool Apply<T>(
+        Func<SyncSentinelConfig, IReadOnlyList<T>?> change,
+        Func<SyncSentinelConfig, IReadOnlyList<T>, SyncSentinelConfig> set)
+    {
+        lock (_gate)
+        {
+            var next = change(_config);
+            if (next is null)
+            {
+                return false;
+            }
+            Mutate(set(_config, next));
+            return true;
+        }
+    }
 
     // Caller holds _gate. Swap the in-memory config and persist it.
     private void Mutate(SyncSentinelConfig next)

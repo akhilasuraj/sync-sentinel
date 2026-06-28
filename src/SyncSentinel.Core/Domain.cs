@@ -5,26 +5,28 @@ namespace SyncSentinel.Core;
 // BackupJob the robocopy runner consumes ("effective command").
 
 /// <summary>A named, reusable list of directory names to exclude (robocopy /XD).</summary>
-public sealed record FolderExclusionSet
+public sealed record FolderExclusionSet : IIdentified<FolderExclusionSet>
 {
     public string Id { get; init; } = ""; // server-assigned on create
     public required string Name { get; init; }
     public IReadOnlyList<string> Folders { get; init; } = [];
+    public FolderExclusionSet WithId(string id) => this with { Id = id };
 }
 
 /// <summary>A named, reusable list of file patterns to exclude (robocopy /XF).</summary>
-public sealed record FileExclusionSet
+public sealed record FileExclusionSet : IIdentified<FileExclusionSet>
 {
     public string Id { get; init; } = ""; // server-assigned on create
     public required string Name { get; init; }
     public IReadOnlyList<string> Patterns { get; init; } = [];
+    public FileExclusionSet WithId(string id) => this with { Id = id };
 }
 
 /// <summary>
 /// One backup unit: a source mirrored to a destination, with attached exclusion
 /// sets (by id), an interval, an optional flags override, and an enabled state.
 /// </summary>
-public sealed record Job
+public sealed record Job : IIdentified<Job>
 {
     public string Id { get; init; } = ""; // server-assigned on create
     public required string Name { get; init; }
@@ -38,6 +40,8 @@ public sealed record Job
 
     public int IntervalMinutes { get; init; } = 15;
     public bool Enabled { get; init; } = true;
+
+    public Job WithId(string id) => this with { Id = id };
 }
 
 /// <summary>Run-history retention bounds (see CONTEXT.md / DESIGN.md §6).</summary>
