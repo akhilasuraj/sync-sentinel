@@ -32,6 +32,9 @@ export const api = {
   // Shell-only features the UI conditionally enables (e.g. the native picker).
   capabilities: () => fetch('/api/capabilities').then(json<{ folderPicker: boolean }>),
 
+  // The running app's version, for the sidebar footer.
+  getVersion: () => fetch('/api/version').then(json<{ version: string }>).then((r) => r.version),
+
   // Native folder dialog: the chosen absolute path, or null on cancel/unavailable
   // (204 / 501). Only called when capabilities.folderPicker is true.
   pickFolder: (body: { initialPath?: string; title?: string }) =>

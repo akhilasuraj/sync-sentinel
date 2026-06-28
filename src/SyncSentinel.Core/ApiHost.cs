@@ -35,6 +35,8 @@ public static class ApiHost
         services.AddSingleton<IFolderPicker, NoOpFolderPicker>();
         // Default no-op; the shell overrides with the real wipe-and-quit impl.
         services.AddSingleton<IAppMaintenance, NoOpAppMaintenance>();
+        // Dev default; the shell overrides with the version stamped into its exe.
+        services.AddSingleton(new AppVersion(AppVersion.Dev));
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
         // SchedulerTickService (auto-schedule due jobs) is registered by the shell
         // only, so tests don't get surprise scheduled runs.
@@ -44,6 +46,9 @@ public static class ApiHost
     public static void MapEndpoints(WebApplication app)
     {
         app.MapGet("/api/ping", () => Results.Json(new { message = "pong" }));
+
+        // The running app's version, for the UI to display.
+        app.MapGet("/api/version", (AppVersion version) => Results.Json(new { version = version.Value }));
 
         // ── Capabilities (shell-only features the UI conditionally enables) ───────
         app.MapGet("/api/capabilities", (IFolderPicker picker) =>

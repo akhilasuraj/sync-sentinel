@@ -9,6 +9,10 @@
     <RootNamespace>SyncSentinel</RootNamespace>
     <AssemblyName>SyncSentinel</AssemblyName>
 
+    <!-- Dev default; CI publishes with -p:Version=<git tag> to stamp the real
+         version into the assembly (read back at runtime for the in-app display). -->
+    <Version>0.0.0-dev</Version>
+
     <!-- Single-file publish hints (effective only on `dotnet publish`): bundle the
          native WebView2 loader + SQLite into the one exe and compress it. The RID
          and self-contained flag are passed on the publish command, not pinned
