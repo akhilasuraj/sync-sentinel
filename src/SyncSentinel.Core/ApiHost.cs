@@ -33,6 +33,8 @@ public static class ApiHost
         services.AddSingleton<IAutostart, NoOpAutostart>();
         // Default no-op; the shell overrides with the native-dialog FolderPicker.
         services.AddSingleton<IFolderPicker, NoOpFolderPicker>();
+        // Default no-op; the shell overrides with the real wipe-and-quit impl.
+        services.AddSingleton<IAppMaintenance, NoOpAppMaintenance>();
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
         // SchedulerTickService (auto-schedule due jobs) is registered by the shell
         // only, so tests don't get surprise scheduled runs.
@@ -179,6 +181,15 @@ public static class ApiHost
             try { autostart.Apply(s.Autostart); }
             catch { /* autostart is non-essential */ }
             return Results.NoContent();
+        });
+
+        // ── Maintenance: portable "remove all data & quit" (no installer) ──────
+        // Mirrors the installer's uninstall+purge: clears the data root + the
+        // autostart entry, then exits. A no-op outside the shell.
+        app.MapPost("/api/maintenance/wipe", (IAppMaintenance maintenance) =>
+        {
+            maintenance.WipeDataAndQuit();
+            return Results.Accepted();
         });
 
         app.MapHub<StatusHub>("/hubs/status");

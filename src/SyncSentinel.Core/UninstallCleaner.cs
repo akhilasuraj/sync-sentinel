@@ -29,7 +29,26 @@ public sealed class UninstallCleaner
 
         if (purgeData && Directory.Exists(_paths.Root))
         {
-            Directory.Delete(_paths.Root, recursive: true);
+            DeleteWithRetry(_paths.Root);
+        }
+    }
+
+    // The installer quits the app before purging, so the data is unlocked. When a
+    // running app triggers its own cleanup (portable "remove & quit"), this may
+    // start a moment before that app releases history.db — so retry briefly.
+    private static void DeleteWithRetry(string dir)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+                return;
+            }
+            catch (Exception ex) when ((ex is IOException || ex is UnauthorizedAccessException) && attempt < 10)
+            {
+                Thread.Sleep(300);
+            }
         }
     }
 }
