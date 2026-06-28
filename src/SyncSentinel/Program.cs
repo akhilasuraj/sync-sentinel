@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Threading;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -19,10 +18,6 @@ namespace SyncSentinel;
 /// </summary>
 internal static class Program
 {
-    private const string MutexName = @"Local\SyncSentinel.SingleInstance";
-    private const string ShowEventName = @"Local\SyncSentinel.Show";
-    private const string QuitEventName = @"Local\SyncSentinel.Quit";
-
     [STAThread]
     private static int Main(string[] args)
     {
@@ -43,20 +38,22 @@ internal static class Program
         // Single instance: a second launch signals the running one to surface its
         // window (or, under --quit, to exit), then exits itself. (Skipped for the
         // short-lived --smoke check.)
-        Mutex? mutex = null;
+        SingleInstanceGuard? guard = null;
         if (!smoke)
         {
-            mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
-            if (!createdNew)
+            guard = new SingleInstanceGuard();
+            if (!guard.TryAcquire())
             {
-                try { EventWaitHandle.OpenExisting(quit ? QuitEventName : ShowEventName).Set(); } catch { /* ignore */ }
+                // Another instance owns the slot: ask it to surface (or quit), then exit.
+                guard.Signal(quit ? InstanceSignal.Quit : InstanceSignal.Show);
+                guard.Dispose();
                 return 0;
             }
 
             // We are the only instance, so --quit has nothing to signal — just exit.
             if (quit)
             {
-                mutex.Dispose();
+                guard.Dispose();
                 return 0;
             }
         }
@@ -143,36 +140,15 @@ internal static class Program
 
         // React to a second launch: --quit asks us to exit, otherwise surface the
         // window. (The installer/uninstaller use --quit to stop us cleanly before
-        // touching files, since closing the window only hides to tray.)
-        using var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
-        using var quitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName);
-        var listener = new Thread(() =>
-        {
-            var handles = new WaitHandle[] { showEvent, quitEvent };
-            while (true)
-            {
-                var signaled = WaitHandle.WaitAny(handles);
-                try
-                {
-                    if (signaled == 0)
-                    {
-                        form.BeginInvoke(() => form.ShowExternally());
-                    }
-                    else
-                    {
-                        form.BeginInvoke(() => form.ExitApplication());
-                        break;
-                    }
-                }
-                catch { break; }
-            }
-        })
-        { IsBackground = true };
-        listener.Start();
+        // touching files, since closing the window only hides to tray.) The guard
+        // owns the mutex + named-event protocol; we supply the window actions.
+        guard?.Listen(
+            onShow: () => form.BeginInvoke(() => form.ShowExternally()),
+            onQuit: () => form.BeginInvoke(() => form.ExitApplication()));
 
         Application.Run(form);
 
-        mutex?.Dispose();
+        guard?.Dispose();
         app.StopAsync().GetAwaiter().GetResult();
         return 0;
     }
