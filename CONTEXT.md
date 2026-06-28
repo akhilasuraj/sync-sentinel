@@ -54,9 +54,12 @@ ubiquitous language — use these terms exactly in code, issues, and docs.
   Its payload is the **installed build**.
 - **Installed build** — the multi-file self-contained layout the installer extracts; no
   single-file self-extraction, so it starts faster than the **portable build**.
-- **Uninstall cleanup** — the app's own removal of its footprint, invoked by the
-  uninstaller: the `HKCU\…\Run` **autostart** entry is always removed; the
-  `%APPDATA%\SyncSentinel` data is removed only when the user confirms.
+- **Uninstall cleanup** — the app's own removal of its footprint: the `HKCU\…\Run`
+  **autostart** entry and the `%APPDATA%\SyncSentinel` data. Invoked by the installer's
+  uninstaller (data removal prompted), and exposed in-app via **Settings → Danger zone**
+  ("Remove all data & quit") for the **portable build**, which has no uninstaller. Both
+  paths run the same cleanup; the running `.exe` (and its WebView2 cache folder beside it)
+  can't delete itself, so the user removes those manually.
 - **Folder picker** — the native Windows folder-selection dialog offered as a Browse
   affordance beside a job's source/destination, so paths can be browsed instead of
   typed. Provided by the **tray shell** only; the fields stay editable everywhere

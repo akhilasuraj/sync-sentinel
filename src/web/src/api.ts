@@ -68,4 +68,8 @@ export const api = {
   deleteFileSet: (id: string) => fetch(`/api/file-sets/${id}`, { method: 'DELETE' }),
 
   updateSettings: (s: GlobalSettings) => fetch('/api/settings', put(s)),
+
+  // Portable "remove all data & quit": clears the data root + autostart entry,
+  // then the app exits. Only meaningful in the desktop shell.
+  wipeData: () => fetch('/api/maintenance/wipe', { method: 'POST' }),
 }

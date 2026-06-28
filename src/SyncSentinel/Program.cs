@@ -87,11 +87,14 @@ internal static class Program
         // Likewise the native folder picker — its UI context is wired once the
         // MainForm exists (below); --smoke keeps the no-op (no window).
         FolderPicker? folderPicker = null;
+        ShellAppMaintenance? maintenance = null;
         if (!smoke)
         {
             builder.Services.AddSingleton<IAutostart>(new AutostartManager(Environment.ProcessPath!));
             folderPicker = new FolderPicker();
             builder.Services.AddSingleton<IFolderPicker>(folderPicker);
+            maintenance = new ShellAppMaintenance(Environment.ProcessPath!);
+            builder.Services.AddSingleton<IAppMaintenance>(maintenance);
         }
 
         var app = builder.Build();
@@ -127,6 +130,8 @@ internal static class Program
         // The folder picker marshals its native dialog onto the window; the DI
         // container was built before the form, so wire the UI context now.
         folderPicker?.SetUiContext(form);
+        // Likewise the maintenance seam needs the window to quit after wiping.
+        maintenance?.SetForm(form);
 
         // React to a second launch: --quit asks us to exit, otherwise surface the
         // window. (The installer/uninstaller use --quit to stop us cleanly before
