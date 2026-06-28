@@ -119,23 +119,12 @@ public static class ApiHost
         // next-due is derived from that last finish via Schedule (stable across a
         // restart, unlike the scheduler's in-memory anchor which forces catch-up).
         app.MapGet("/api/jobs/status", (ConfigService cfg, RunHistoryStore history, RunQueue queue) =>
-            Results.Json(cfg.Current.Jobs.Select(j =>
-            {
-                var last = history.ListByJob(j.Id, 1).FirstOrDefault();
-                return new
-                {
-                    jobId = j.Id,
-                    lastStatus = last?.Status,
-                    // A never-run enabled job is due now — emit a real timestamp,
-                    // not Schedule.NextDue's year-0001 (MinValue + interval).
-                    nextDueUtc = !j.Enabled ? (DateTimeOffset?)null
-                        : last is null ? DateTimeOffset.UtcNow
-                        : Schedule.NextDue(j, last.FinishedUtc),
-                    state = queue.Running == j.Id ? "Running"
-                        : queue.Pending.Contains(j.Id) ? "Queued"
-                        : "Idle",
-                };
-            })));
+            Results.Json(JobStatusView.Project(
+                cfg.Current.Jobs,
+                id => history.ListByJob(id, 1).FirstOrDefault(),
+                queue.Running,
+                queue.Pending,
+                DateTimeOffset.UtcNow)));
 
         // ── Run history ───────────────────────────────────────────────────────
         app.MapGet("/api/jobs/{id}/runs", (string id, RunHistoryStore history) =>

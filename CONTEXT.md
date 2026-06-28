@@ -38,6 +38,11 @@ ubiquitous language — use these terms exactly in code, issues, and docs.
   overlaps itself.
 - **Run queue** — the single global FIFO queue. Only **one** robocopy runs at a
   time; other due jobs wait. **Run now** enqueues immediately / jumps the queue.
+- **Job status view** — the per-job read-model the dashboard and job cards render:
+  a job's **last-run status**, its **next-due** time, and its live **queue state**
+  (`Running` / `Queued` / `Idle`), combined into one row. A never-run enabled job
+  reads as due now; a **paused** job has no next-due. The **job status feed** is the
+  full list across all jobs.
 - **Tray shell** — the thin WinForms host: system-tray icon + the WebView2 window.
   Closing the window hides to tray (scheduling continues); exit is via the tray menu.
 - **Autostart** — whether SyncSentinel launches automatically on Windows login, as a
