@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api } from './api'
-import { useHub } from './useHub'
-import { blankJob, type Job, type RunRecord, type RunStats, type SyncSentinelConfig } from './types'
-import type { JobStatus } from './lib/jobStatus'
+import { useEffect, useState } from 'react'
+import { useAppData } from './useAppData'
+import { blankJob, type Job } from './types'
 import Sidebar, { type Route } from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import JobCard from './components/JobCard'
@@ -12,34 +10,11 @@ import SetsTab from './components/SetsTab'
 import SettingsTab from './components/SettingsTab'
 
 export default function App() {
-  const [config, setConfig] = useState<SyncSentinelConfig | null>(null)
+  const { config, statuses, recent, stats, connected, run, isJobRunning, runJob, deleteJob, refresh } = useAppData()
   const [route, setRoute] = useState<Route>('dashboard')
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Job | null>(null)
-  const [runningId, setRunningId] = useState<string | null>(null)
-  const [statuses, setStatuses] = useState<Record<string, JobStatus>>({})
-  const [recent, setRecent] = useState<RunRecord[]>([])
-  const [stats, setStats] = useState<RunStats | null>(null)
   const [now, setNow] = useState(() => Date.now())
-
-  const { connected, run } = useHub(() => setRunningId(null))
-  const reload = useCallback(() => api.getConfig().then(setConfig), [])
-  const reloadStatuses = useCallback(
-    () => api.getJobStatuses().then((list) => setStatuses(Object.fromEntries(list.map((s) => [s.jobId, s])))),
-    [],
-  )
-  const reloadDashboard = useCallback(() => {
-    api.getRecentRuns(10).then(setRecent).catch(() => {})
-    api.getStats().then(setStats).catch(() => {})
-  }, [])
-
-  useEffect(() => void reload(), [reload])
-
-  // Refresh the run-state feed + dashboard data on load and on every run change.
-  useEffect(() => {
-    reloadStatuses()
-    reloadDashboard()
-  }, [reloadStatuses, reloadDashboard, run.state])
 
   // Tick a shared clock so countdowns stay live.
   useEffect(() => {
@@ -47,19 +22,9 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
-  const isJobRunning = (job: Job) =>
-    runningId === job.id || (run.state === 'running' && run.jobId === job.id)
-
-  async function runJob(job: Job) {
-    setRunningId(job.id)
-    const res = await api.runJob(job.id)
-    if (!res.ok) setRunningId(null) // 409 already running / 422 precondition failed
-  }
-
-  async function deleteJob(job: Job) {
-    await api.deleteJob(job.id)
+  async function removeJob(job: Job) {
+    await deleteJob(job.id)
     setSelectedJobId(null)
-    reload()
   }
 
   if (!config) return <div className="grid h-screen place-items-center text-slate-500">Loading…</div>
@@ -89,11 +54,11 @@ export default function App() {
             status={statuses[selectedJob.id]}
             now={now}
             run={run}
-            isRunning={isJobRunning(selectedJob)}
+            isRunning={isJobRunning(selectedJob.id)}
             onBack={() => setSelectedJobId(null)}
-            onRun={() => runJob(selectedJob)}
+            onRun={() => runJob(selectedJob.id)}
             onEdit={() => setEditing(selectedJob)}
-            onDelete={() => deleteJob(selectedJob)}
+            onDelete={() => removeJob(selectedJob)}
           />
         )}
 
@@ -120,9 +85,9 @@ export default function App() {
                     job={job}
                     status={statuses[job.id]}
                     now={now}
-                    isRunning={isJobRunning(job)}
+                    isRunning={isJobRunning(job.id)}
                     onOpen={() => setSelectedJobId(job.id)}
-                    onRun={() => runJob(job)}
+                    onRun={() => runJob(job.id)}
                   />
                 ))}
               </div>
@@ -133,14 +98,14 @@ export default function App() {
         {route === 'sets' && (
           <div className="mx-auto max-w-5xl px-8 py-8">
             <p className="eyebrow mb-5">Exclusion sets</p>
-            <SetsTab folderSets={config.folderSets} fileSets={config.fileSets} onChanged={reload} />
+            <SetsTab folderSets={config.folderSets} fileSets={config.fileSets} onChanged={refresh} />
           </div>
         )}
 
         {route === 'settings' && (
           <div className="mx-auto max-w-5xl px-8 py-8">
             <p className="eyebrow mb-5">Settings</p>
-            <SettingsTab settings={config.settings} onSaved={reload} />
+            <SettingsTab settings={config.settings} onSaved={refresh} />
           </div>
         )}
       </main>
@@ -150,7 +115,7 @@ export default function App() {
           job={editing}
           folderSets={config.folderSets}
           fileSets={config.fileSets}
-          onSaved={() => { setEditing(null); reload() }}
+          onSaved={() => { setEditing(null); refresh() }}
           onCancel={() => setEditing(null)}
         />
       )}
