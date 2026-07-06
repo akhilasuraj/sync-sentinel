@@ -2,21 +2,46 @@
 
 [![CI](https://github.com/akhilasuraj/sync-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/akhilasuraj/sync-sentinel/actions/workflows/ci.yml)
 
-A Windows tray app that keeps your dev folders mirrored to OneDrive-synced
-destinations on a per-job schedule — robocopy under the hood, an elegant UI on top.
+A Windows tray app that periodically mirrors your working folders into a
+cloud-synced folder — robocopy under the hood, an elegant UI on top.
 
-> **Status: feature-complete (Phases 0–5).** Tray app, config CRUD UI, scheduler +
-> run queue, run history + retention, and single-file packaging are all built and
-> tested (test-first). See [`DESIGN.md`](DESIGN.md) for the design,
-> [`CONTEXT.md`](CONTEXT.md) for the vocabulary, and
-> [`docs/adr/0001-architecture.md`](docs/adr/0001-architecture.md) for the
-> architecture decision and the alternatives weighed.
+## The problem
+
+Your work lives on one disk. Some of it is committed and pushed; some of it is
+staged-but-not-pushed, or uncommitted, or scratch files that were never in any
+repo at all. If that disk dies, everything that wasn't already somewhere else is
+simply gone — and the stuff that hurts most is usually the stuff Git never knew
+about.
+
+You probably already have a cloud sync client running (OneDrive, Dropbox, Google
+Drive, iCloud Drive…). The obvious fix is to move your project folders inside its
+synced folder and let it back everything up. But pointing a sync engine directly
+at an *active* codebase is painful: every build, every `npm install`, every
+branch switch rewrites thousands of files, and the sync client churns through
+CPU, disk, and network trying to keep up — while you're trying to work.
+
+## The solution
+
+SyncSentinel keeps your working folders where they are and, on a schedule,
+**mirrors** them into a destination folder that your cloud client already syncs.
+
+- Your project folders stay **outside** the sync engine's watch, so there's no
+  constant churn while you code.
+- The mirror runs every N minutes (your choice), so a copy of your work —
+  committed or not, versioned or not — is always making its way to the cloud.
+- It uses **robocopy**, so each run only copies what actually changed.
+
+It was built and tested against **OneDrive**, but nothing in it is
+OneDrive-specific: the destination is just a folder, so any file-based sync
+client that watches a folder works the same way.
 
 ## What it does
 
 - **Pick source → destination jobs** in a UI.
-- **Named, reusable exclusion sets** — folder-sets and file-sets — composed per job.
-- **robocopy underneath**, with editable behavior flags (global default + per-job override) and a live command preview.
+- **Named, reusable exclusion sets** — folder-sets and file-sets — composed per job
+  (skip `node_modules`, `bin/`, `obj/`, and friends once, reuse everywhere).
+- **robocopy underneath**, with editable behavior flags (global default + per-job
+  override) and a live command preview.
 - **Per-job interval** (default 15 min), one job at a time, no overlap.
 - **Live status + streaming logs** per job, plus searchable run history.
 - Lives in the **system tray**, autostarts on login.
@@ -37,6 +62,21 @@ if it's missing ([download](https://developer.microsoft.com/microsoft-edge/webvi
 > The binaries are **unsigned**, so on first run Windows SmartScreen may show *"Windows
 > protected your PC."* Click **More info → Run anyway** to proceed.
 
+## Using it
+
+1. **Launch** SyncSentinel — it opens a window and lives in the system tray (closing
+   the window just hides it there).
+2. Go to **Jobs → New job** and give it a name.
+3. Set the **Source** — your working folder (e.g. `C:\dev\MyProject`) — and the
+   **Destination**: a folder *inside* the one your cloud client already syncs
+   (e.g. `…\OneDrive\Backups\MyProject`).
+4. *(Optional)* Attach **exclusion sets** to skip noise like `node_modules`, `bin/`,
+   or `obj/`. Create these once under **Exclusion Sets**, then reuse them across jobs.
+5. Set the **interval** (default 15 min), make sure **Enabled** is checked, and
+   **Save**. The job now runs on schedule — or hit **Run now** to trigger it
+   immediately — and you can watch live status and streaming logs on the
+   **Dashboard**.
+
 ## Uninstall
 
 - **Installed**: uninstall from **Settings → Apps** (or the Start-menu entry). This
@@ -47,24 +87,21 @@ if it's missing ([download](https://developer.microsoft.com/microsoft-edge/webvi
   entry and delete your data, then delete the exe. (Omit `--purge-data` to keep your
   settings + history.)
 
-## Tech stack
+## Built with
 
-| Layer | Choice | Version (target, Jun 2026) |
-|---|---|---|
-| Backend | C# / .NET — scheduler, robocopy process control, log streaming | **.NET 10 (LTS)** |
-| API / realtime | ASP.NET Core (Kestrel, loopback-only) + SignalR | ships with .NET 10 |
-| UI | React + TypeScript, rendered in the system **WebView2** (no bundled Chromium) | React 19, TS 6.0 |
-| UI styling / build | Tailwind CSS + component kit (e.g. shadcn/ui); Vite bundler | Tailwind v4, Vite 8 |
-| Shell | thin WinForms tray host (NotifyIcon) | .NET 10 |
-| Storage | `config.json` + SQLite (Microsoft.Data.Sqlite) under `%APPDATA%\SyncSentinel` | 10.x |
-| Build toolchain | Node.js (for the React build) | **Node 24 (Active LTS)** |
-| Distribution | per-user installer + portable self-contained `.exe` | — |
+| Layer | Choice |
+|---|---|
+| Backend | C# / .NET — scheduler, robocopy process control, log streaming |
+| API / realtime | ASP.NET Core (Kestrel, loopback-only) + SignalR |
+| UI | React + TypeScript, rendered in the system **WebView2** (no bundled Chromium) |
+| UI styling / build | Tailwind CSS + component kit; Vite bundler |
+| Shell | thin WinForms tray host (NotifyIcon) |
+| Storage | `config.json` + SQLite under `%APPDATA%\SyncSentinel` |
+| Distribution | per-user installer + portable self-contained `.exe` |
 
-Windows-only by design (robocopy). See the ADR for why this stack over Electron / Tauri / WPF.
-Versions verified current as of June 2026; only **.NET** and **Node** have formal LTS tracks
-(the rest follow latest-stable). TypeScript 7.0 (Go-native, ~10× faster) is at RC — adopt on GA.
+Windows-only by design (robocopy).
 
-## Build, test, run
+## Building from source
 
 Prerequisites: **.NET 10 SDK**, **Node 24+** (for the React build), Windows with the
 **WebView2 runtime** (preinstalled on Win10/11).
@@ -81,9 +118,6 @@ npm --prefix src/web test            # Vitest (UI logic + components)
 
 # Run the app (system tray + WebView2 window)
 dotnet run --project src/SyncSentinel
-
-# Headless host smoke check (real Kestrel: ping, static, config, run -> recorded)
-dotnet run --project src/SyncSentinel -- --smoke
 ```
 
 ## Packaging
@@ -106,22 +140,6 @@ ISCC /DAppVersion=1.0.0 installer/SyncSentinel.iss
 
 Autostart (a per-user `HKCU\…\Run` entry launching `SyncSentinel.exe --tray`) is
 toggled by the **Start automatically on login** setting and reconciled at startup.
-Closing the window hides to the tray; exit via the tray menu; a second launch surfaces
-the running instance. The installer/uninstaller drive the app via `--quit` (stop a
-running instance gracefully) and `--uninstall [--purge-data]` (remove its footprint);
-see [`docs/adr/0002-installer-packaging.md`](docs/adr/0002-installer-packaging.md).
-
-## CI / releases
-
-- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and on PRs:
-  installs the web deps, runs Vitest, builds the UI + solution, and runs the .NET tests.
-- **Releases** (`.github/workflows/release.yml`) run when a version tag is pushed —
-  they re-run the tests, publish the portable exe, build the installer, and attach both
-  `SyncSentinel-Setup.exe` and `SyncSentinel.exe` to a GitHub release:
-
-  ```sh
-  git tag v1.0.0 && git push origin v1.0.0
-  ```
 
 ## License
 
