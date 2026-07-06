@@ -4,10 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SyncSentinel — scheduled folder mirroring for Windows</title>
-<meta name="description" content="A Windows tray app that periodically mirrors a source folder to a destination using robocopy — with reusable exclusion sets, live run status, and history." />
+<meta name="description" content="A Windows tray app that periodically mirrors your working folders into a folder your cloud already syncs (OneDrive, Dropbox, …) using robocopy — a continuous off-machine backup, without the sync-engine churn." />
 <meta name="theme-color" content="#0b0e14" />
 <meta property="og:title" content="SyncSentinel" />
-<meta property="og:description" content="Copies a source folder to a destination on a schedule — robocopy under the hood, an elegant tray UI on top." />
+<meta property="og:description" content="Mirrors your working folders into a folder your cloud already syncs — a continuous off-machine backup, without the sync-engine churn. Robocopy under the hood, an elegant tray UI on top." />
 <meta property="og:type" content="website" />
 <meta property="og:image" content="https://akhilasuraj.github.io/sync-sentinel/icon-1024.png" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
@@ -267,7 +267,7 @@
       <div class="hero-copy">
         <span class="eyebrow">Windows · tray app · robocopy</span>
         <h1>Stands watch over the folders <span class="accent">you can't lose.</span></h1>
-        <p class="lede">SyncSentinel mirrors any source folder to its destination on a schedule — robocopy doing the work, an elegant tray UI keeping you posted.</p>
+        <p class="lede">SyncSentinel mirrors your working folders into a folder your cloud already syncs — on a schedule, without the sync-engine churn. Robocopy does the work; a tray UI keeps you posted.</p>
         <div class="hero-cta">
           <a class="btn btn-primary" href="#download">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
@@ -304,6 +304,18 @@
           </div>
         </div>
         <div class="watch-log" id="w-log" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Why it exists ────────────────────────────────────────────────── -->
+  <section class="band" style="padding-bottom:0;">
+    <div class="wrap">
+      <div class="band-head reveal">
+        <span class="eyebrow">Why it exists</span>
+        <h2>Your work lives on one disk. <span style="color:var(--peri)">Until it doesn't.</span></h2>
+        <p>Some of it is committed and pushed. Some is staged but not pushed, uncommitted, or scratch files that were never in any repo at all. If that disk dies, everything that wasn't already somewhere else is simply gone — and it's usually the stuff Git never knew about that hurts most.</p>
+        <p>You already run a cloud sync client — OneDrive, Dropbox, Google Drive. But pointing it straight at an active codebase means every build, every <code>npm install</code>, every branch switch rewrites thousands of files while the sync engine churns through CPU and disk trying to keep up — while you're trying to work. So SyncSentinel leaves your working folders where they are and, on a schedule, mirrors them into a folder your cloud <em>already</em> syncs — a continuous off-machine copy of your work, without the churn.</p>
       </div>
     </div>
   </section>
