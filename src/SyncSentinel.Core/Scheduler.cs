@@ -2,9 +2,17 @@ using System.Collections.Concurrent;
 
 namespace SyncSentinel.Core;
 
+public enum RunNowResult
+{
+    Queued,
+    AlreadyQueued,
+    UnknownJob,
+    UpdateInProgress,
+}
+
 /// <summary>
 /// Drives backups: <see cref="Tick"/> enqueues every due job (per <see
-/// cref="Schedule"/>, anchored to its last finish), <see cref="RunNow"/> jumps a
+/// cref="Schedule"/>, anchored to its last finish), <see cref="RequestRunNow"/> jumps a
 /// job to the front, and <see cref="PumpAsync"/> drains the <see cref="RunQueue"/>
 /// one job at a time through the executor, recording each finish. A clock and the
 /// executor are injectable so the scheduling logic is deterministically testable.
@@ -33,15 +41,20 @@ public sealed class Scheduler
         _now = now;
     }
 
-    /// <summary>Queue a job to run now (jumps the queue). False if the job is unknown.</summary>
-    public bool RunNow(string jobId)
+    /// <summary>Queue a job at the front, with an explicit reason when it cannot be queued.</summary>
+    public RunNowResult RequestRunNow(string jobId)
     {
         if (_config.ResolveJob(jobId) is null)
         {
-            return false;
+            return RunNowResult.UnknownJob;
         }
-        _queue.Enqueue(jobId, front: true);
-        return true;
+        return _queue.TryEnqueue(jobId, front: true) switch
+        {
+            RunQueueEnqueueResult.Enqueued => RunNowResult.Queued,
+            RunQueueEnqueueResult.Duplicate => RunNowResult.AlreadyQueued,
+            RunQueueEnqueueResult.UpdateReserved => RunNowResult.UpdateInProgress,
+            _ => throw new InvalidOperationException("Unknown queue result."),
+        };
     }
 
     /// <summary>Enqueue every job that is currently due.</summary>

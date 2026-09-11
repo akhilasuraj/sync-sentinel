@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SyncSentinel.Core;
 
@@ -14,6 +16,8 @@ public static class ApiHost
     /// <summary>Register SyncSentinel's services on the host builder.</summary>
     public static void ConfigureServices(IServiceCollection services)
     {
+        services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
         services.AddSignalR();
         services.AddHostedService<HeartbeatService>();
         services.AddSingleton<RobocopyRunner>();
@@ -35,6 +39,8 @@ public static class ApiHost
         services.AddSingleton<IFolderPicker, NoOpFolderPicker>();
         // Default no-op; the shell overrides with the real wipe-and-quit impl.
         services.AddSingleton<IAppMaintenance, NoOpAppMaintenance>();
+        // Default no-op; the desktop shell supplies its distribution-aware updater.
+        services.AddSingleton<IAppUpdateService, NoOpAppUpdateService>();
         // Dev default; the shell overrides with the version stamped into its exe.
         services.AddSingleton(new AppVersion(AppVersion.Dev));
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
@@ -51,8 +57,16 @@ public static class ApiHost
         app.MapGet("/api/version", (AppVersion version) => Results.Json(new { version = version.Value }));
 
         // ── Capabilities (shell-only features the UI conditionally enables) ───────
-        app.MapGet("/api/capabilities", (IFolderPicker picker) =>
-            Results.Json(new { folderPicker = picker.Available }));
+        app.MapGet("/api/capabilities", (IFolderPicker picker, IAppUpdateService updates) =>
+            Results.Json(new
+            {
+                folderPicker = picker.Available,
+                updates = updates.Available ? updates.Distribution.ToString().ToLowerInvariant() : "unavailable",
+            }));
+
+        app.MapGet("/api/updates/status", (IAppUpdateService updates) => Results.Json(updates.Status));
+        app.MapPost("/api/updates/check", async (IAppUpdateService updates, CancellationToken cancellationToken) =>
+            Results.Json(await updates.CheckAsync(UpdateCheckMode.UserRequested, cancellationToken)));
 
         // ── Folder picker (native dialog via the shell seam) ──────────────────────
         app.MapPost("/api/pick-folder", async (PickFolderRequest req, IFolderPicker picker) =>
@@ -111,7 +125,14 @@ public static class ApiHost
             {
                 return Results.Json(new { error = reason }, statusCode: StatusCodes.Status422UnprocessableEntity);
             }
-            return scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound();
+            return scheduler.RequestRunNow(id) switch
+            {
+                RunNowResult.Queued or RunNowResult.AlreadyQueued => Results.Accepted(),
+                RunNowResult.UpdateInProgress => Results.Json(
+                    new { error = "A SyncSentinel update is starting. Try the backup again after the app relaunches." },
+                    statusCode: StatusCodes.Status409Conflict),
+                _ => Results.NotFound(),
+            };
         });
 
         // ── Per-job run-state feed (backs the card's status dot + countdown) ──
@@ -167,13 +188,18 @@ public static class ApiHost
             cfg.DeleteFileSet(id) ? Results.NoContent() : Results.NotFound());
 
         // ── Settings ──────────────────────────────────────────────────────────
-        app.MapPut("/api/settings", (GlobalSettings s, ConfigService cfg, IAutostart autostart) =>
+        app.MapPut("/api/settings", (GlobalSettings s, ConfigService cfg, IAutostart autostart, IAppUpdateService updates) =>
         {
+            var enableUpdateChecksNow = !cfg.Current.Settings.AutomaticUpdateChecks && s.AutomaticUpdateChecks;
             cfg.UpdateSettings(s);
             // Apply the login-autostart preference immediately (best-effort: the
             // settings are already persisted; autostart is non-essential).
             try { autostart.Apply(s.Autostart); }
             catch { /* autostart is non-essential */ }
+            if (enableUpdateChecksNow)
+            {
+                _ = updates.CheckAsync(UpdateCheckMode.Automatic);
+            }
             return Results.NoContent();
         });
 

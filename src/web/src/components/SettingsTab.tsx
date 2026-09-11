@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import type { GlobalSettings } from '../types'
+import type { AppUpdateStatus, GlobalSettings } from '../types'
 import FlagsEditor from './FlagsEditor'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -8,6 +8,9 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
   const [form, setForm] = useState<GlobalSettings>(settings)
   const [saving, setSaving] = useState(false)
   const [inShell, setInShell] = useState(false)
+  const [updateCapability, setUpdateCapability] = useState<'installed' | 'portable' | 'unavailable'>('unavailable')
+  const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus | null>(null)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [wiping, setWiping] = useState(false)
   const [wipeError, setWipeError] = useState(false)
@@ -17,7 +20,13 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
   // The wipe-and-quit action only does anything in the desktop shell; hide it
   // elsewhere (same shell-presence signal the folder picker uses).
   useEffect(() => {
-    api.capabilities().then((c) => setInShell(c.folderPicker)).catch(() => setInShell(false))
+    api.capabilities().then((c) => {
+      setInShell(c.folderPicker)
+      setUpdateCapability(c.updates ?? 'unavailable')
+      if (c.updates && c.updates !== 'unavailable') {
+        api.getUpdateStatus().then(setUpdateStatus).catch(() => {})
+      }
+    }).catch(() => setInShell(false))
   }, [])
 
   async function save() {
@@ -45,6 +54,20 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
       // Network error / request aborted — surface it instead of hanging on "Removing…".
       setWiping(false)
       setWipeError(true)
+    }
+  }
+
+  async function checkForUpdates() {
+    setCheckingUpdates(true)
+    try {
+      setUpdateStatus(await api.checkForUpdates())
+    } catch {
+      setUpdateStatus({
+        distribution: updateCapability === 'installed' ? 'installed' : 'portable',
+        state: 'error', version: null, message: "Couldn't check for updates. Please try again.", releaseUrl: null,
+      })
+    } finally {
+      setCheckingUpdates(false)
     }
   }
 
@@ -82,11 +105,36 @@ export default function SettingsTab({ settings, onSaved }: { settings: GlobalSet
           <span className="text-sm">Start automatically on login</span>
         </label>
 
+        <label className="mt-3 flex items-center gap-2">
+          <input type="checkbox" checked={form.automaticUpdateChecks} onChange={(e) => set('automaticUpdateChecks', e.target.checked)} />
+          <span className="text-sm">Check automatically for updates</span>
+        </label>
+
         <div className="mt-6 flex items-center gap-2">
           <button className="btn" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : 'Save settings'}</button>
           {dirty && <button className="btn-ghost" disabled={saving} onClick={() => setForm(settings)}>Cancel</button>}
         </div>
       </section>
+
+      {updateCapability !== 'unavailable' && (
+        <section className="mt-6 max-w-xl rounded-2xl border border-edge bg-panel p-5">
+          <h2 className="text-base font-semibold">Updates</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            {updateCapability === 'installed'
+              ? 'Installed copy — signed updates can be downloaded and installed in the app.'
+              : 'Portable copy — update checks can open the release page, but never overwrite this executable.'}
+          </p>
+          {updateStatus && <p className="mt-3 text-sm text-slate-300">{updateStatus.message}</p>}
+          {updateStatus?.releaseUrl && (
+            <a className="mt-2 inline-block text-sm text-sentinel hover:underline" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">View release</a>
+          )}
+          <div className="mt-4">
+            <button className="btn" disabled={checkingUpdates} onClick={checkForUpdates}>
+              {checkingUpdates ? 'Checking…' : 'Check for updates'}
+            </button>
+          </div>
+        </section>
+      )}
 
       {inShell && (
         <section className="mt-6 max-w-xl rounded-2xl border border-red-500/30 bg-panel p-5">

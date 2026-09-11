@@ -59,6 +59,7 @@ public sealed record GlobalSettings
     public int MaxConcurrent { get; init; } = 1;
     public RetentionSettings Retention { get; init; } = new();
     public bool Autostart { get; init; } = true;
+    public bool AutomaticUpdateChecks { get; init; } = true;
 }
 
 /// <summary>The full persisted configuration (serialized to config.json).</summary>

@@ -35,6 +35,15 @@ export interface GlobalSettings {
   maxConcurrent: number
   retention: RetentionSettings
   autostart: boolean
+  automaticUpdateChecks: boolean
+}
+
+export interface AppUpdateStatus {
+  distribution: 'installed' | 'portable'
+  state: 'idle' | 'checking' | 'upToDate' | 'updateAvailable' | 'error'
+  version: string | null
+  message: string
+  releaseUrl: string | null
 }
 
 export interface SyncSentinelConfig {

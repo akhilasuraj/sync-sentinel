@@ -6,6 +6,7 @@ import type {
   RunRecord,
   RunStats,
   SyncSentinelConfig,
+  AppUpdateStatus,
 } from './types'
 import type { JobStatus } from './lib/jobStatus'
 
@@ -30,7 +31,10 @@ export const api = {
   getConfig: () => fetch('/api/config').then(json<SyncSentinelConfig>),
 
   // Shell-only features the UI conditionally enables (e.g. the native picker).
-  capabilities: () => fetch('/api/capabilities').then(json<{ folderPicker: boolean }>),
+  capabilities: () => fetch('/api/capabilities').then(json<{ folderPicker: boolean; updates: 'installed' | 'portable' | 'unavailable' }>),
+
+  getUpdateStatus: () => fetch('/api/updates/status').then(json<AppUpdateStatus>),
+  checkForUpdates: () => fetch('/api/updates/check', { method: 'POST' }).then(json<AppUpdateStatus>),
 
   // The running app's version, for the sidebar footer.
   getVersion: () => fetch('/api/version').then(json<{ version: string }>).then((r) => r.version),

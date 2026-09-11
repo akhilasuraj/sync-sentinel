@@ -7,7 +7,15 @@ import type { GlobalSettings } from '../types'
 vi.mock('../api', () => ({
   api: {
     updateSettings: vi.fn().mockResolvedValue(undefined),
-    capabilities: vi.fn().mockResolvedValue({ folderPicker: false }),
+    capabilities: vi.fn().mockResolvedValue({ folderPicker: false, updates: 'unavailable' }),
+    getUpdateStatus: vi.fn().mockResolvedValue({
+      distribution: 'portable', state: 'idle', version: null,
+      message: 'Updates have not been checked yet.', releaseUrl: null,
+    }),
+    checkForUpdates: vi.fn().mockResolvedValue({
+      distribution: 'portable', state: 'upToDate', version: null,
+      message: 'SyncSentinel is up to date.', releaseUrl: null,
+    }),
     wipeData: vi.fn().mockResolvedValue({ ok: true }),
   },
 }))
@@ -19,6 +27,7 @@ const settings: GlobalSettings = {
   maxConcurrent: 1,
   retention: { runsPerJob: 100, days: 30 },
   autostart: true,
+  automaticUpdateChecks: true,
 }
 
 describe('SettingsTab', () => {
@@ -51,7 +60,7 @@ describe('SettingsTab', () => {
   })
 
   it('in the shell, confirming the danger action wipes the data', async () => {
-    vi.mocked(api.capabilities).mockResolvedValueOnce({ folderPicker: true })
+    vi.mocked(api.capabilities).mockResolvedValueOnce({ folderPicker: true, updates: 'portable' })
     const user = userEvent.setup()
     render(<SettingsTab settings={settings} onSaved={() => {}} />)
 
@@ -62,5 +71,26 @@ describe('SettingsTab', () => {
 
     expect(api.wipeData).toHaveBeenCalledOnce()
     expect(await screen.findByText(/SyncSentinel is closing/)).toBeInTheDocument()
+  })
+
+  it('persists the automatic update preference with the other settings', async () => {
+    const user = userEvent.setup()
+    render(<SettingsTab settings={settings} onSaved={() => {}} />)
+
+    await user.click(screen.getByRole('checkbox', { name: 'Check automatically for updates' }))
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    expect(api.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ automaticUpdateChecks: false }))
+  })
+
+  it('runs a manual update check and reports its result', async () => {
+    vi.mocked(api.capabilities).mockResolvedValueOnce({ folderPicker: true, updates: 'portable' })
+    const user = userEvent.setup()
+    render(<SettingsTab settings={settings} onSaved={() => {}} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Check for updates' }))
+
+    expect(api.checkForUpdates).toHaveBeenCalledOnce()
+    expect(await screen.findByText('SyncSentinel is up to date.')).toBeInTheDocument()
   })
 })

@@ -1,5 +1,12 @@
 namespace SyncSentinel.Core;
 
+public enum RunQueueEnqueueResult
+{
+    Enqueued,
+    Duplicate,
+    UpdateReserved,
+}
+
 /// <summary>
 /// The single global run queue. Holds pending job ids in FIFO order with at most
 /// one job running at a time (maxConcurrent = 1). Enqueue de-duplicates — a job
@@ -12,19 +19,29 @@ public sealed class RunQueue
     private readonly object _gate = new();
     private readonly LinkedList<string> _pending = new();
     private string? _running;
+    private bool _reservedForUpdate;
 
     public string? Running { get { lock (_gate) { return _running; } } }
 
     public IReadOnlyList<string> Pending { get { lock (_gate) { return _pending.ToList(); } } }
 
-    /// <summary>Enqueue a job; returns false if it is already pending or running.</summary>
-    public bool Enqueue(string jobId, bool front = false)
+    /// <summary>
+    /// Enqueue a job; returns false when it is already present or installer handoff reserved the queue.
+    /// </summary>
+    public bool Enqueue(string jobId, bool front = false) =>
+        TryEnqueue(jobId, front) == RunQueueEnqueueResult.Enqueued;
+
+    public RunQueueEnqueueResult TryEnqueue(string jobId, bool front = false)
     {
         lock (_gate)
         {
+            if (_reservedForUpdate)
+            {
+                return RunQueueEnqueueResult.UpdateReserved;
+            }
             if (_running == jobId || _pending.Contains(jobId))
             {
-                return false;
+                return RunQueueEnqueueResult.Duplicate;
             }
             if (front)
             {
@@ -34,7 +51,7 @@ public sealed class RunQueue
             {
                 _pending.AddLast(jobId);
             }
-            return true;
+            return RunQueueEnqueueResult.Enqueued;
         }
     }
 
@@ -43,7 +60,7 @@ public sealed class RunQueue
     {
         lock (_gate)
         {
-            if (_running is not null || _pending.Count == 0)
+            if (_reservedForUpdate || _running is not null || _pending.Count == 0)
             {
                 return null;
             }
@@ -63,6 +80,31 @@ public sealed class RunQueue
             {
                 _running = null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Atomically proves the queue is idle and prevents new work from entering
+    /// while the updater hands control to the installer.
+    /// </summary>
+    public bool TryReserveForUpdate()
+    {
+        lock (_gate)
+        {
+            if (_reservedForUpdate || _running is not null || _pending.Count > 0)
+            {
+                return false;
+            }
+            _reservedForUpdate = true;
+            return true;
+        }
+    }
+
+    public void ReleaseUpdateReservation()
+    {
+        lock (_gate)
+        {
+            _reservedForUpdate = false;
         }
     }
 }

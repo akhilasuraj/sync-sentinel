@@ -78,4 +78,6 @@ uninstaller packaging decisions are in
 [`docs/adr/0002-installer-packaging.md`](docs/adr/0002-installer-packaging.md); the
 folder-picker (native dialog via a shell seam) is in
 [`docs/adr/0003-folder-picker.md`](docs/adr/0003-folder-picker.md).
+Automatic-update distribution, signing, and run-safety decisions are in
+[`docs/adr/0004-automatic-updates.md`](docs/adr/0004-automatic-updates.md).
 Record new cross-cutting decisions as further ADRs under `docs/adr/`.

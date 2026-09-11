@@ -41,7 +41,7 @@ import { useAppData } from './useAppData'
 
 const SETTINGS: GlobalSettings = {
   defaultFlags: '/MIR', defaultIntervalMinutes: 15, maxConcurrent: 1,
-  retention: { runsPerJob: 100, days: 30 }, autostart: true,
+  retention: { runsPerJob: 100, days: 30 }, autostart: true, automaticUpdateChecks: true,
 }
 const job = (id: string): Job => ({
   id, name: id, source: 's', destination: 'd',
