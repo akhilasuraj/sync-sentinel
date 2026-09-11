@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SyncSentinel.Core;
 
@@ -14,6 +16,8 @@ public static class ApiHost
     /// <summary>Register SyncSentinel's services on the host builder.</summary>
     public static void ConfigureServices(IServiceCollection services)
     {
+        services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
         services.AddSignalR();
         services.AddHostedService<HeartbeatService>();
         services.AddSingleton<RobocopyRunner>();
@@ -35,6 +39,8 @@ public static class ApiHost
         services.AddSingleton<IFolderPicker, NoOpFolderPicker>();
         // Default no-op; the shell overrides with the real wipe-and-quit impl.
         services.AddSingleton<IAppMaintenance, NoOpAppMaintenance>();
+        // Default no-op; the desktop shell supplies its distribution-aware updater.
+        services.AddSingleton<IAppUpdateService, NoOpAppUpdateService>();
         // Dev default; the shell overrides with the version stamped into its exe.
         services.AddSingleton(new AppVersion(AppVersion.Dev));
         services.AddHostedService<QueuePumpService>(); // drains the queue (incl. tests)
@@ -51,8 +57,16 @@ public static class ApiHost
         app.MapGet("/api/version", (AppVersion version) => Results.Json(new { version = version.Value }));
 
         // ── Capabilities (shell-only features the UI conditionally enables) ───────
-        app.MapGet("/api/capabilities", (IFolderPicker picker) =>
-            Results.Json(new { folderPicker = picker.Available }));
+        app.MapGet("/api/capabilities", (IFolderPicker picker, IAppUpdateService updates) =>
+            Results.Json(new
+            {
+                folderPicker = picker.Available,
+                updates = updates.Available ? updates.Distribution.ToString().ToLowerInvariant() : "unavailable",
+            }));
+
+        app.MapGet("/api/updates/status", (IAppUpdateService updates) => Results.Json(updates.Status));
+        app.MapPost("/api/updates/check", async (IAppUpdateService updates, CancellationToken cancellationToken) =>
+            Results.Json(await updates.CheckAsync(manual: true, cancellationToken)));
 
         // ── Folder picker (native dialog via the shell seam) ──────────────────────
         app.MapPost("/api/pick-folder", async (PickFolderRequest req, IFolderPicker picker) =>

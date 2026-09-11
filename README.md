@@ -52,8 +52,11 @@ Grab the latest [release](https://github.com/akhilasuraj/sync-sentinel/releases)
 
 - **`SyncSentinel-Setup.exe`** *(recommended)* — a **per-user installer** (no admin).
   Installs to `%LOCALAPPDATA%\Programs\SyncSentinel`, adds a Start-menu shortcut, and
-  launches the app on finish. Upgrades install in place.
+  launches the app on finish. Upgrades install in place. Installed copies check a
+  signed update feed at startup and offer **Update**, **Skip**, or **Remind Me Later**.
 - **`SyncSentinel.exe`** — the **portable** build: run it from anywhere, no install.
+  Portable copies can notify you and open the newest release, but never overwrite
+  themselves.
 
 Both are **self-contained** (the .NET runtime is bundled — nothing else to install) and
 need the **Edge WebView2 Runtime**, preinstalled on Windows 10/11; the installer warns
@@ -140,6 +143,12 @@ ISCC /DAppVersion=1.0.0 installer/SyncSentinel.iss
 
 Autostart (a per-user `HKCU\…\Run` entry launching `SyncSentinel.exe --tray`) is
 toggled by the **Start automatically on login** setting and reconciled at startup.
+
+Automatic update checks are enabled by default and can be disabled under **Settings**;
+manual checks remain available there. An update never installs while a backup is
+running or queued. Release builds publish an Ed25519-signed NetSparkle appcast; the
+repository's `SPARKLE_PRIVATE_KEY` Actions secret must match the public key compiled
+into `DesktopUpdateService`.
 
 ## License
 

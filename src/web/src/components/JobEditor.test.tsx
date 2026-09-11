@@ -11,7 +11,7 @@ vi.mock('../api', () => ({
     preview: vi.fn().mockResolvedValue({ command: 'robocopy ...' }),
     addJob: vi.fn().mockResolvedValue({ id: 'new' }),
     updateJob: vi.fn().mockResolvedValue(undefined),
-    capabilities: vi.fn().mockResolvedValue({ folderPicker: false }),
+    capabilities: vi.fn().mockResolvedValue({ folderPicker: false, updates: 'unavailable' }),
     pickFolder: vi.fn().mockResolvedValue('C:\\picked\\folder'),
     pathExists: vi.fn().mockResolvedValue({ exists: true }),
   },
@@ -58,7 +58,7 @@ describe('JobEditor', () => {
   })
 
   it('shows Browse when available and fills the field from the picker', async () => {
-    vi.mocked(api.capabilities).mockResolvedValueOnce({ folderPicker: true })
+    vi.mocked(api.capabilities).mockResolvedValueOnce({ folderPicker: true, updates: 'portable' })
     const user = userEvent.setup()
     render(<JobEditor job={blankJob()} folderSets={folderSets} fileSets={[]} onSaved={() => {}} onCancel={() => {}} />)
 

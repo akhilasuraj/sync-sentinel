@@ -93,6 +93,7 @@ internal static class Program
         // MainForm exists (below); --smoke keeps the no-op (no window).
         FolderPicker? folderPicker = null;
         ShellAppMaintenance? maintenance = null;
+        DesktopUpdateService? updates = null;
         if (!smoke)
         {
             builder.Services.AddSingleton<IAutostart>(new AutostartManager(Environment.ProcessPath!));
@@ -100,6 +101,13 @@ internal static class Program
             builder.Services.AddSingleton<IFolderPicker>(folderPicker);
             maintenance = new ShellAppMaintenance(Environment.ProcessPath!);
             builder.Services.AddSingleton<IAppMaintenance>(maintenance);
+            var distribution = AppInstallation.Detect(Environment.ProcessPath!);
+            builder.Services.AddSingleton<IAppUpdateService>(services =>
+                updates = new DesktopUpdateService(
+                    distribution,
+                    version,
+                    paths,
+                    services.GetRequiredService<RunQueue>()));
         }
 
         var app = builder.Build();
@@ -137,6 +145,18 @@ internal static class Program
         folderPicker?.SetUiContext(form);
         // Likewise the maintenance seam needs the window to quit after wiping.
         maintenance?.SetForm(form);
+        updates = (DesktopUpdateService)app.Services.GetRequiredService<IAppUpdateService>();
+        updates.SetForm(form);
+
+        // Check after the WinForms message loop starts so native update dialogs
+        // are created on the UI thread. A hidden tray launch still receives Load.
+        form.Load += async (_, _) =>
+        {
+            if (app.Services.GetRequiredService<ConfigService>().Current.Settings.AutomaticUpdateChecks)
+            {
+                await updates.CheckAsync(manual: false);
+            }
+        };
 
         // React to a second launch: --quit asks us to exit, otherwise surface the
         // window. (The installer/uninstaller use --quit to stop us cleanly before
