@@ -66,7 +66,7 @@ public static class ApiHost
 
         app.MapGet("/api/updates/status", (IAppUpdateService updates) => Results.Json(updates.Status));
         app.MapPost("/api/updates/check", async (IAppUpdateService updates, CancellationToken cancellationToken) =>
-            Results.Json(await updates.CheckAsync(manual: true, cancellationToken)));
+            Results.Json(await updates.CheckAsync(UpdateCheckMode.UserRequested, cancellationToken)));
 
         // ── Folder picker (native dialog via the shell seam) ──────────────────────
         app.MapPost("/api/pick-folder", async (PickFolderRequest req, IFolderPicker picker) =>
@@ -181,13 +181,18 @@ public static class ApiHost
             cfg.DeleteFileSet(id) ? Results.NoContent() : Results.NotFound());
 
         // ── Settings ──────────────────────────────────────────────────────────
-        app.MapPut("/api/settings", (GlobalSettings s, ConfigService cfg, IAutostart autostart) =>
+        app.MapPut("/api/settings", (GlobalSettings s, ConfigService cfg, IAutostart autostart, IAppUpdateService updates) =>
         {
+            var enableUpdateChecksNow = !cfg.Current.Settings.AutomaticUpdateChecks && s.AutomaticUpdateChecks;
             cfg.UpdateSettings(s);
             // Apply the login-autostart preference immediately (best-effort: the
             // settings are already persisted; autostart is non-essential).
             try { autostart.Apply(s.Autostart); }
             catch { /* autostart is non-essential */ }
+            if (enableUpdateChecksNow)
+            {
+                _ = updates.CheckAsync(UpdateCheckMode.Automatic);
+            }
             return Results.NoContent();
         });
 

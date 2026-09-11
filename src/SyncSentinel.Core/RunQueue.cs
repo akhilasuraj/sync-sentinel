@@ -12,6 +12,7 @@ public sealed class RunQueue
     private readonly object _gate = new();
     private readonly LinkedList<string> _pending = new();
     private string? _running;
+    private bool _reservedForUpdate;
 
     public string? Running { get { lock (_gate) { return _running; } } }
 
@@ -22,6 +23,10 @@ public sealed class RunQueue
     {
         lock (_gate)
         {
+            if (_reservedForUpdate)
+            {
+                return false;
+            }
             if (_running == jobId || _pending.Contains(jobId))
             {
                 return false;
@@ -43,7 +48,7 @@ public sealed class RunQueue
     {
         lock (_gate)
         {
-            if (_running is not null || _pending.Count == 0)
+            if (_reservedForUpdate || _running is not null || _pending.Count == 0)
             {
                 return null;
             }
@@ -63,6 +68,31 @@ public sealed class RunQueue
             {
                 _running = null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Atomically proves the queue is idle and prevents new work from entering
+    /// while the updater hands control to the installer.
+    /// </summary>
+    public bool TryReserveForUpdate()
+    {
+        lock (_gate)
+        {
+            if (_reservedForUpdate || _running is not null || _pending.Count > 0)
+            {
+                return false;
+            }
+            _reservedForUpdate = true;
+            return true;
+        }
+    }
+
+    public void ReleaseUpdateReservation()
+    {
+        lock (_gate)
+        {
+            _reservedForUpdate = false;
         }
     }
 }

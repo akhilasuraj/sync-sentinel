@@ -93,7 +93,9 @@ internal static class Program
         // MainForm exists (below); --smoke keeps the no-op (no window).
         FolderPicker? folderPicker = null;
         ShellAppMaintenance? maintenance = null;
-        DesktopUpdateService? updates = null;
+        IAppUpdateService? updates = null;
+        InstalledUpdateService? installedUpdates = null;
+        WinFormsPortableUpdateInteraction? portableUpdateInteraction = null;
         if (!smoke)
         {
             builder.Services.AddSingleton<IAutostart>(new AutostartManager(Environment.ProcessPath!));
@@ -102,12 +104,24 @@ internal static class Program
             maintenance = new ShellAppMaintenance(Environment.ProcessPath!);
             builder.Services.AddSingleton<IAppMaintenance>(maintenance);
             var distribution = AppInstallation.Detect(Environment.ProcessPath!);
-            builder.Services.AddSingleton<IAppUpdateService>(services =>
-                updates = new DesktopUpdateService(
-                    distribution,
+            if (distribution == AppDistribution.Installed)
+            {
+                builder.Services.AddSingleton<IAppUpdateService>(services =>
+                    installedUpdates = new InstalledUpdateService(services.GetRequiredService<RunQueue>()));
+            }
+            else
+            {
+                portableUpdateInteraction = new WinFormsPortableUpdateInteraction();
+                builder.Services.AddSingleton(new HttpClient());
+                builder.Services.AddSingleton<IUpdateReleaseSource, GitHubUpdateReleaseSource>();
+                builder.Services.AddSingleton<IPortableUpdateStateStore>(new JsonPortableUpdateStateStore(paths));
+                builder.Services.AddSingleton<IPortableUpdateInteraction>(portableUpdateInteraction);
+                builder.Services.AddSingleton<IAppUpdateService>(services => new PortableUpdateService(
                     version,
-                    paths,
-                    services.GetRequiredService<RunQueue>()));
+                    services.GetRequiredService<IUpdateReleaseSource>(),
+                    services.GetRequiredService<IPortableUpdateStateStore>(),
+                    services.GetRequiredService<IPortableUpdateInteraction>()));
+            }
         }
 
         var app = builder.Build();
@@ -145,17 +159,17 @@ internal static class Program
         folderPicker?.SetUiContext(form);
         // Likewise the maintenance seam needs the window to quit after wiping.
         maintenance?.SetForm(form);
-        updates = (DesktopUpdateService)app.Services.GetRequiredService<IAppUpdateService>();
-        updates.SetForm(form);
+        updates = app.Services.GetRequiredService<IAppUpdateService>();
+        installedUpdates?.SetForm(form);
+        portableUpdateInteraction?.SetForm(form);
 
         // Check after the WinForms message loop starts so native update dialogs
         // are created on the UI thread. A hidden tray launch still receives Load.
         form.Load += async (_, _) =>
         {
-            if (app.Services.GetRequiredService<ConfigService>().Current.Settings.AutomaticUpdateChecks)
-            {
-                await updates.CheckAsync(manual: false);
-            }
+            await UpdateStartup.CheckAsync(
+                app.Services.GetRequiredService<ConfigService>().Current.Settings,
+                updates);
         };
 
         // React to a second launch: --quit asks us to exit, otherwise surface the
