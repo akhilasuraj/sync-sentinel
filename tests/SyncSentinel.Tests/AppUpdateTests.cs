@@ -60,6 +60,19 @@ public sealed class AppUpdateTests : IDisposable
         string candidate, string current, bool expected) =>
         Assert.Equal(expected, PortableUpdatePolicy.IsNewer(candidate, current));
 
+    [Theory]
+    [InlineData("0.6.0+b973401", "0.6.0")]
+    [InlineData("v1.2.0-beta.1+build.42", "1.2.0-beta.1")]
+    public void Installed_update_profile_uses_public_semver_without_build_metadata(
+        string stampedVersion,
+        string expectedVersion)
+    {
+        var profile = InstalledUpdateProfile.Create(new StoragePaths(_scratch), stampedVersion);
+
+        Assert.Equal(expectedVersion, profile.CurrentVersion);
+        Assert.Equal(Path.Combine(_scratch, "installed-update-state.json"), profile.StatePath);
+    }
+
     [Fact]
     public void Manual_portable_checks_bypass_cooldown_and_skipped_version()
     {
@@ -208,6 +221,11 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains("netsparkle-generate-appcast", workflow);
         Assert.Contains("appcast.xml.signature", workflow);
         Assert.Contains("SyncSentinel-Setup.exe", workflow);
+        Assert.Contains("releases/generate-notes", workflow);
+        Assert.Contains("--change-log-path", workflow);
+        Assert.Contains("--reparse-existing", workflow);
+        Assert.Contains("Validate-ReleaseFeed.ps1", workflow);
+        Assert.Contains("--notes-file", workflow);
         Assert.False(string.IsNullOrWhiteSpace(compiledPublicKey));
         Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);
         Assert.Contains("skipifsilent", installer, StringComparison.OrdinalIgnoreCase);

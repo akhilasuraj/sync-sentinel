@@ -107,7 +107,10 @@ internal static class Program
             if (distribution == AppDistribution.Installed)
             {
                 builder.Services.AddSingleton<IAppUpdateService>(services =>
-                    installedUpdates = new InstalledUpdateService(services.GetRequiredService<RunQueue>()));
+                    installedUpdates = new InstalledUpdateService(
+                        services.GetRequiredService<RunQueue>(),
+                        paths,
+                        version));
             }
             else
             {
