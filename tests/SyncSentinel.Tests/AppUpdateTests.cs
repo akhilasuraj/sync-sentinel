@@ -213,6 +213,7 @@ public sealed class AppUpdateTests : IDisposable
     {
         var root = RepositoryPaths.Root;
         var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "release.yml"));
+        var feedBuilder = File.ReadAllText(Path.Combine(root, ".github", "scripts", "Build-ReleaseFeed.ps1"));
         var installer = File.ReadAllText(Path.Combine(root, "installer", "SyncSentinel.iss"));
         var installedUpdater = File.ReadAllText(Path.Combine(root, "src", "SyncSentinel", "InstalledUpdateService.cs"));
         var compiledPublicKey = Regex.Match(installedUpdater, "PublicKey = \"([^\"]+)\"").Groups[1].Value;
@@ -222,9 +223,11 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains("appcast.xml.signature", workflow);
         Assert.Contains("SyncSentinel-Setup.exe", workflow);
         Assert.Contains("releases/generate-notes", workflow);
-        Assert.Contains("--change-log-path", workflow);
-        Assert.Contains("--reparse-existing", workflow);
-        Assert.Contains("Validate-ReleaseFeed.ps1", workflow);
+        Assert.Contains("Build-ReleaseFeed.ps1", workflow);
+        Assert.Contains("ProductVersion", workflow);
+        Assert.Contains("--change-log-path", feedBuilder);
+        Assert.Contains("--reparse-existing", feedBuilder);
+        Assert.Contains("Validate-ReleaseFeed.ps1", feedBuilder);
         Assert.Contains("--notes-file", workflow);
         Assert.False(string.IsNullOrWhiteSpace(compiledPublicKey));
         Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);

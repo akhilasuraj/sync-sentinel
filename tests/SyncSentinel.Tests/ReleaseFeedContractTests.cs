@@ -77,6 +77,55 @@ public sealed class ReleaseFeedContractTests : IDisposable
         Assert.Contains("incorrect installer URL", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Generation_from_a_prior_feed_retains_history_and_backfills_its_notes()
+    {
+        var feedDirectory = Path.Combine(_scratch, "feed");
+        var notesDirectory = Path.Combine(_scratch, "notes");
+        Directory.CreateDirectory(feedDirectory);
+        Directory.CreateDirectory(notesDirectory);
+        File.WriteAllText(Path.Combine(feedDirectory, "appcast.xml"), Appcast(Item("1.1.0", string.Empty)));
+        File.WriteAllText(Path.Combine(notesDirectory, "1.2.0.md"), "Changes in 1.2.0");
+
+        var generator = Path.Combine(_scratch, "fake-generator.ps1");
+        File.WriteAllText(generator, $$"""
+            param([Parameter(ValueFromRemainingArguments = $true)] [string[]] $Arguments)
+            if ('--reparse-existing' -notin $Arguments) { throw 'Expected --reparse-existing.' }
+            $baseUrl = $Arguments[[Array]::IndexOf($Arguments, '--base-url') + 1]
+            if ($baseUrl -ne 'https://example.test/releases/download/v1.2.0/') { throw "Unexpected base URL: $baseUrl" }
+            $feedDirectory = $Arguments[[Array]::IndexOf($Arguments, '--appcast-output-directory') + 1]
+            $appcastPath = Join-Path $feedDirectory 'appcast.xml'
+            [xml] $feed = Get-Content $appcastPath -Raw
+            $fragment = $feed.CreateDocumentFragment()
+            $fragment.InnerXml = @'
+            {{Item("1.2.0", "<description>Changes in 1.2.0</description>").Replace("<item>", "<item xmlns:sparkle=\"http://www.andymatuschak.org/xml-namespaces/sparkle\">")}}
+            '@
+            $feed.rss.channel.PrependChild($fragment.FirstChild) | Out-Null
+            $feed.Save($appcastPath)
+            [IO.File]::WriteAllText("$appcastPath.signature", '{{ValidSignature}}')
+            """);
+
+        var root = RepositoryPaths.Root;
+        var script = Path.Combine(root, ".github", "scripts", "Build-ReleaseFeed.ps1");
+        var result = RunPowerShell(
+            root,
+            script,
+            $"-GeneratorPath \"{generator}\" -InstallerPath installer.exe -FeedDirectory \"{feedDirectory}\" " +
+            $"-ChangeLogDirectory \"{notesDirectory}\" -Version 1.2.0 " +
+            "-BaseUrl https://example.test/releases/download/v1.2.0/ " +
+            "-LatestAppcastUrl https://example.test/releases/latest/download/appcast.xml " +
+            "-RepositoryUrl https://example.test/");
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        System.Xml.Linq.XNamespace sparkle = "http://www.andymatuschak.org/xml-namespaces/sparkle";
+        var document = System.Xml.Linq.XDocument.Load(Path.Combine(feedDirectory, "appcast.xml"));
+        var items = document.Root!.Element("channel")!.Elements("item").ToArray();
+        Assert.Equal(new[] { "1.2.0", "1.1.0" }, items.Select(item => item.Element(sparkle + "version")!.Value));
+        Assert.Equal(
+            "https://example.test/releases/tag/v1.1.0",
+            items[1].Element(sparkle + "releaseNotesLink")!.Value);
+    }
+
     private ValidationResult ValidateFeed(string appcast, string extraArguments = "")
     {
         var appcastPath = Path.Combine(_scratch, "appcast.xml");
@@ -85,10 +134,16 @@ public sealed class ReleaseFeedContractTests : IDisposable
         File.WriteAllText(signaturePath, ValidSignature);
         var root = RepositoryPaths.Root;
         var script = Path.Combine(root, ".github", "scripts", "Validate-ReleaseFeed.ps1");
+        return RunPowerShell(root, script,
+            $"-AppcastPath \"{appcastPath}\" -ExpectedVersion 1.2.0 -ExpectedInstallerUrl https://example.test/releases/download/v1.2.0/SyncSentinel-Setup.exe -RepositoryUrl https://example.test {extraArguments}");
+    }
+
+    private static ValidationResult RunPowerShell(string workingDirectory, string script, string arguments)
+    {
         var process = Process.Start(new ProcessStartInfo("pwsh")
         {
-            WorkingDirectory = root,
-            Arguments = $"-NoProfile -File \"{script}\" -AppcastPath \"{appcastPath}\" -ExpectedVersion 1.2.0 -ExpectedInstallerUrl https://example.test/releases/download/v1.2.0/SyncSentinel-Setup.exe -RepositoryUrl https://example.test {extraArguments}",
+            WorkingDirectory = workingDirectory,
+            Arguments = $"-NoProfile -File \"{script}\" {arguments}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
