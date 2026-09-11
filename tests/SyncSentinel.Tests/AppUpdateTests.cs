@@ -2,6 +2,7 @@ using SyncSentinel.Core;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -92,14 +93,16 @@ public sealed class AppUpdateTests : IDisposable
     public async Task Portable_service_reports_feed_errors_without_prompting()
     {
         var interaction = new FakePortableInteraction(PortableUpdateChoice.RemindLater);
+        var store = new MemoryUpdateStateStore();
         var service = new PortableUpdateService(
             "1.0.0", new FakeReleaseSource(new HttpRequestException("offline")),
-            new MemoryUpdateStateStore(), interaction);
+            store, interaction);
 
         var result = await service.CheckAsync(UpdateCheckMode.Automatic);
 
         Assert.Equal(AppUpdateCheckState.Error, result.State);
         Assert.Equal(0, interaction.PromptCount);
+        Assert.NotNull(store.State.LastCheckedUtc);
     }
 
     [Fact]
@@ -146,14 +149,15 @@ public sealed class AppUpdateTests : IDisposable
         var caps = await client.GetFromJsonAsync<Capabilities>("/api/capabilities");
         Assert.Equal("portable", caps!.Updates);
 
-        var initial = await client.GetFromJsonAsync<AppUpdateStatus>("/api/updates/status");
-        Assert.Equal(AppUpdateCheckState.Idle, initial!.State);
+        var initial = await client.GetStringAsync("/api/updates/status");
+        Assert.Contains("\"distribution\":\"portable\"", initial);
+        Assert.Contains("\"state\":\"idle\"", initial);
 
         var response = await client.PostAsync("/api/updates/check", null);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(updater.LastCheckWasManual);
-        var checkedStatus = await response.Content.ReadFromJsonAsync<AppUpdateStatus>();
-        Assert.Equal(AppUpdateCheckState.UpToDate, checkedStatus!.State);
+        var checkedStatus = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"state\":\"upToDate\"", checkedStatus);
     }
 
     [Fact]
@@ -197,11 +201,15 @@ public sealed class AppUpdateTests : IDisposable
         var root = FindRepositoryRoot();
         var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "release.yml"));
         var installer = File.ReadAllText(Path.Combine(root, "installer", "SyncSentinel.iss"));
+        var installedUpdater = File.ReadAllText(Path.Combine(root, "src", "SyncSentinel", "InstalledUpdateService.cs"));
+        var compiledPublicKey = Regex.Match(installedUpdater, "PublicKey = \"([^\"]+)\"").Groups[1].Value;
 
         Assert.Contains("SPARKLE_PRIVATE_KEY", workflow);
         Assert.Contains("netsparkle-generate-appcast", workflow);
         Assert.Contains("appcast.xml.signature", workflow);
         Assert.Contains("SyncSentinel-Setup.exe", workflow);
+        Assert.False(string.IsNullOrWhiteSpace(compiledPublicKey));
+        Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);
         Assert.Contains("skipifsilent", installer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--quit", installer);
     }

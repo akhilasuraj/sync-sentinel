@@ -27,9 +27,9 @@ public sealed class SchedulerTests : IDisposable
     private int RunsOf(string name) => _ran.Count(n => n == name);
 
     [Fact]
-    public void RunNow_returns_false_for_an_unknown_job()
+    public void RunNow_reports_an_unknown_job()
     {
-        Assert.False(_sched.RunNow("nope"));
+        Assert.Equal(RunNowResult.UnknownJob, _sched.RequestRunNow("nope"));
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class SchedulerTests : IDisposable
     {
         var job = AddJob("PEMS");
 
-        Assert.True(_sched.RunNow(job.Id));
+        Assert.Equal(RunNowResult.Queued, _sched.RequestRunNow(job.Id));
         await _sched.PumpAsync();
 
         Assert.Equal(1, RunsOf("PEMS"));

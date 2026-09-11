@@ -125,7 +125,14 @@ public static class ApiHost
             {
                 return Results.Json(new { error = reason }, statusCode: StatusCodes.Status422UnprocessableEntity);
             }
-            return scheduler.RunNow(id) ? Results.Accepted() : Results.NotFound();
+            return scheduler.RequestRunNow(id) switch
+            {
+                RunNowResult.Queued or RunNowResult.AlreadyQueued => Results.Accepted(),
+                RunNowResult.UpdateInProgress => Results.Json(
+                    new { error = "A SyncSentinel update is starting. Try the backup again after the app relaunches." },
+                    statusCode: StatusCodes.Status409Conflict),
+                _ => Results.NotFound(),
+            };
         });
 
         // ── Per-job run-state feed (backs the card's status dot + countdown) ──

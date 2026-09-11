@@ -35,11 +35,28 @@ internal sealed class WinFormsPortableUpdateInteraction : IPortableUpdateInterac
                 DialogResult.No => PortableUpdateChoice.SkipVersion,
                 _ => PortableUpdateChoice.RemindLater,
             };
-            if (action == PortableUpdateChoice.ViewRelease)
+            try
             {
-                Process.Start(new ProcessStartInfo(release.ReleaseUrl) { UseShellExecute = true });
+                if (action == PortableUpdateChoice.ViewRelease)
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(release.ReleaseUrl) { UseShellExecute = true });
+                    }
+                    catch
+                    {
+                        MessageBox.Show(
+                            $"Couldn't open the browser. You can visit this release manually:\n\n{release.ReleaseUrl}",
+                            "Couldn't open release",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
             }
-            completion.SetResult(action);
+            finally
+            {
+                completion.TrySetResult(action);
+            }
         }
 
         if (_form.InvokeRequired)

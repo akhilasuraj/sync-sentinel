@@ -130,9 +130,9 @@ public sealed class PortableUpdateService : IAppUpdateService
             }
 
             Status = Status with { State = AppUpdateCheckState.Checking, Message = "Checking for updates…" };
-            var release = await _releases.GetLatestAsync(cancellationToken);
             state = state with { LastCheckedUtc = now };
             _stateStore.Save(state);
+            var release = await _releases.GetLatestAsync(cancellationToken);
 
             if (!PortableUpdatePolicy.IsNewer(release.Version, _currentVersion))
             {

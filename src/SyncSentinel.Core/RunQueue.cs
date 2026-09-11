@@ -1,5 +1,12 @@
 namespace SyncSentinel.Core;
 
+public enum RunQueueEnqueueResult
+{
+    Enqueued,
+    Duplicate,
+    UpdateReserved,
+}
+
 /// <summary>
 /// The single global run queue. Holds pending job ids in FIFO order with at most
 /// one job running at a time (maxConcurrent = 1). Enqueue de-duplicates — a job
@@ -18,18 +25,23 @@ public sealed class RunQueue
 
     public IReadOnlyList<string> Pending { get { lock (_gate) { return _pending.ToList(); } } }
 
-    /// <summary>Enqueue a job; returns false if it is already pending or running.</summary>
-    public bool Enqueue(string jobId, bool front = false)
+    /// <summary>
+    /// Enqueue a job; returns false when it is already present or installer handoff reserved the queue.
+    /// </summary>
+    public bool Enqueue(string jobId, bool front = false) =>
+        TryEnqueue(jobId, front) == RunQueueEnqueueResult.Enqueued;
+
+    public RunQueueEnqueueResult TryEnqueue(string jobId, bool front = false)
     {
         lock (_gate)
         {
             if (_reservedForUpdate)
             {
-                return false;
+                return RunQueueEnqueueResult.UpdateReserved;
             }
             if (_running == jobId || _pending.Contains(jobId))
             {
-                return false;
+                return RunQueueEnqueueResult.Duplicate;
             }
             if (front)
             {
@@ -39,7 +51,7 @@ public sealed class RunQueue
             {
                 _pending.AddLast(jobId);
             }
-            return true;
+            return RunQueueEnqueueResult.Enqueued;
         }
     }
 

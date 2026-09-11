@@ -152,4 +152,24 @@ public sealed class RunEndpointTests : IDisposable
 
         Assert.Equal(HttpStatusCode.NotFound, run.StatusCode);
     }
+
+    [Fact]
+    public async Task Run_now_returns_conflict_instead_of_dropping_work_during_update_handoff()
+    {
+        var src = Path.Combine(_scratch, "reserved-src");
+        var dst = Path.Combine(_scratch, "reserved-dst");
+        Directory.CreateDirectory(src);
+        await using var app = await TestApp.StartAsync(Path.Combine(_scratch, "reserved-config"));
+        var client = app.GetTestClient();
+        var create = await client.PostAsJsonAsync(
+            "/api/jobs", new { name = "reserved", source = src, destination = dst, enabled = true });
+        var job = await create.Content.ReadFromJsonAsync<CreatedJob>();
+        Assert.True(app.Services.GetRequiredService<RunQueue>().TryReserveForUpdate());
+
+        var run = await client.PostAsync($"/api/jobs/{job!.Id}/run", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, run.StatusCode);
+        var body = await run.Content.ReadFromJsonAsync<ErrorDto>();
+        Assert.Contains("update", body!.Error, StringComparison.OrdinalIgnoreCase);
+    }
 }
