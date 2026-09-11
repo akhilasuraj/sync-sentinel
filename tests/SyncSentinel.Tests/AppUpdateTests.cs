@@ -211,7 +211,7 @@ public sealed class AppUpdateTests : IDisposable
     [Fact]
     public void Release_pipeline_publishes_a_signed_appcast_for_the_silent_installer()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "release.yml"));
         var installer = File.ReadAllText(Path.Combine(root, "installer", "SyncSentinel.iss"));
         var installedUpdater = File.ReadAllText(Path.Combine(root, "src", "SyncSentinel", "InstalledUpdateService.cs"));
@@ -230,16 +230,6 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);
         Assert.Contains("skipifsilent", installer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--quit", installer);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "SyncSentinel.slnx")))
-        {
-            directory = directory.Parent;
-        }
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Could not find the repository root.");
     }
 
     private sealed record Capabilities(string Updates);

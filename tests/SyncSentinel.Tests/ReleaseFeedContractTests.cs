@@ -4,6 +4,7 @@ namespace SyncSentinel.Tests;
 
 public sealed class ReleaseFeedContractTests : IDisposable
 {
+    private static readonly string ValidSignature = Convert.ToBase64String(new byte[64]);
     private readonly string _scratch =
         Path.Combine(Path.GetTempPath(), "ss-release-feed-" + Guid.NewGuid().ToString("N"));
 
@@ -52,18 +53,42 @@ public sealed class ReleaseFeedContractTests : IDisposable
         Assert.Contains("newest first", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Historical_release_notes_link_must_target_that_exact_version()
+    {
+        var result = ValidateFeed(Appcast(
+            Item("1.2.0", "<description>Changes in 1.2.0</description>"),
+            Item("1.1.0", "<sparkle:releaseNotesLink>https://example.test/releases</sparkle:releaseNotesLink>")));
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("incorrect release-notes link", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Historical_enclosure_metadata_must_match_its_release_version()
+    {
+        var historical = Item("1.1.0", "<description>Changes in 1.1.0</description>")
+            .Replace("download/v1.1.0", "download/v9.9.9", StringComparison.Ordinal);
+        var result = ValidateFeed(Appcast(
+            Item("1.2.0", "<description>Changes in 1.2.0</description>"),
+            historical));
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("incorrect installer URL", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
     private ValidationResult ValidateFeed(string appcast, string extraArguments = "")
     {
         var appcastPath = Path.Combine(_scratch, "appcast.xml");
         var signaturePath = appcastPath + ".signature";
         File.WriteAllText(appcastPath, appcast);
-        File.WriteAllText(signaturePath, "test-signature");
-        var root = FindRepositoryRoot();
+        File.WriteAllText(signaturePath, ValidSignature);
+        var root = RepositoryPaths.Root;
         var script = Path.Combine(root, ".github", "scripts", "Validate-ReleaseFeed.ps1");
         var process = Process.Start(new ProcessStartInfo("pwsh")
         {
             WorkingDirectory = root,
-            Arguments = $"-NoProfile -File \"{script}\" -AppcastPath \"{appcastPath}\" -ExpectedVersion 1.2.0 -ExpectedInstallerUrl https://example.test/v1.2.0/SyncSentinel-Setup.exe {extraArguments}",
+            Arguments = $"-NoProfile -File \"{script}\" -AppcastPath \"{appcastPath}\" -ExpectedVersion 1.2.0 -ExpectedInstallerUrl https://example.test/releases/download/v1.2.0/SyncSentinel-Setup.exe -RepositoryUrl https://example.test {extraArguments}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -88,20 +113,9 @@ public sealed class ReleaseFeedContractTests : IDisposable
           <title>SyncSentinel {{version}}</title>
           {{notes}}
           <sparkle:version>{{version}}</sparkle:version>
-          <enclosure url="https://example.test/v{{version}}/SyncSentinel-Setup.exe" sparkle:version="{{version}}" sparkle:signature="signed" />
+          <enclosure url="https://example.test/releases/download/v{{version}}/SyncSentinel-Setup.exe" sparkle:version="{{version}}" sparkle:signature="{{ValidSignature}}" />
         </item>
         """;
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "SyncSentinel.slnx")))
-        {
-            directory = directory.Parent;
-        }
-        return directory?.FullName
-            ?? throw new DirectoryNotFoundException("Could not find the repository root.");
-    }
 
     private sealed record ValidationResult(int ExitCode, string Output);
 }

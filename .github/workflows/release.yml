@@ -93,12 +93,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           New-Item -ItemType Directory -Force release-feed | Out-Null
-          gh release download --pattern appcast.xml --dir release-feed --clobber 2>$null
+          $releases = @(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName | ConvertFrom-Json)
           if ($LASTEXITCODE -ne 0) {
-            Remove-Item release-feed\appcast.xml -ErrorAction SilentlyContinue
+            throw 'Could not determine the previous stable release.'
+          }
+          if ($releases.Count -eq 0) {
             "count=0" >> $env:GITHUB_OUTPUT
             "versions=" >> $env:GITHUB_OUTPUT
             exit 0
+          }
+          gh release download $releases[0].tagName --pattern appcast.xml --dir release-feed --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "The previous stable release $($releases[0].tagName) has no downloadable appcast."
           }
 
           [xml] $feed = Get-Content release-feed\appcast.xml -Raw
@@ -164,8 +170,26 @@ jobs:
             -AppcastPath release-feed\appcast.xml `
             -ExpectedVersion '${{ steps.ver.outputs.version }}' `
             -ExpectedInstallerUrl 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/SyncSentinel-Setup.exe' `
+            -RepositoryUrl 'https://github.com/${{ github.repository }}' `
             -RequiredVersions $requiredVersions `
             -MinimumItemCount ([int] '${{ steps.previous_feed.outputs.count }}' + 1)
+
+          [xml] $appcast = Get-Content release-feed\appcast.xml -Raw
+          $sparkle = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
+          $ns = [System.Xml.XmlNamespaceManager]::new($appcast.NameTable)
+          $ns.AddNamespace('sparkle', $sparkle)
+          $installerSignature = $appcast.SelectSingleNode('/rss/channel/item[1]/enclosure', $ns).GetAttribute('signature', $sparkle)
+          $installerVerification = @(.\.tools\netsparkle-generate-appcast.exe `
+            --verify installer\SyncSentinel-Setup.exe --signature $installerSignature)
+          if ('Signature valid' -notin $installerVerification) {
+            throw 'The current installer signature failed Ed25519 verification.'
+          }
+          $appcastSignature = (Get-Content release-feed\appcast.xml.signature -Raw).Trim()
+          $appcastVerification = @(.\.tools\netsparkle-generate-appcast.exe `
+            --verify release-feed\appcast.xml --signature $appcastSignature)
+          if ('Signature valid' -notin $appcastVerification) {
+            throw 'The detached appcast signature failed Ed25519 verification.'
+          }
 
       - name: Create GitHub release
         env:

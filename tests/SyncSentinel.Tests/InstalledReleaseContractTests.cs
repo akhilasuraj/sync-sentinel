@@ -14,7 +14,7 @@ public sealed class InstalledReleaseContractTests : IDisposable
     [Fact]
     public void Release_build_exposes_the_public_version_without_source_revision_metadata()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var result = Process.Start(new ProcessStartInfo("dotnet")
         {
             WorkingDirectory = root,
@@ -35,15 +35,4 @@ public sealed class InstalledReleaseContractTests : IDisposable
         Assert.Equal("9.8.7.0", metadata.FileVersion);
     }
 
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "SyncSentinel.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName
-            ?? throw new DirectoryNotFoundException("Could not find the repository root.");
-    }
 }
