@@ -92,6 +92,9 @@ jobs:
           if (-not (Test-Path release-feed\appcast.xml) -or -not (Test-Path release-feed\appcast.xml.signature)) {
             throw 'The signed NetSparkle appcast was not generated.'
           }
+          if (-not (Select-String -Quiet -SimpleMatch 'sparkle:signature=' release-feed\appcast.xml)) {
+            throw 'The installer entry in appcast.xml is unsigned.'
+          }
 
       - name: Create GitHub release
         env:

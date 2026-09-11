@@ -1,6 +1,7 @@
 using SyncSentinel.Core;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -96,6 +97,22 @@ public sealed class AppUpdateTests : IDisposable
 
         Assert.Equal(AppUpdateCheckState.Error, result.State);
         Assert.Equal(0, interaction.PromptCount);
+    }
+
+    [Fact]
+    public async Task GitHub_release_source_reads_the_latest_tag_and_release_url()
+    {
+        var handler = new StubHttpHandler("""
+            { "tag_name": "v2.3.4", "html_url": "https://github.com/example/releases/tag/v2.3.4" }
+            """);
+        var source = new GitHubUpdateReleaseSource(new HttpClient(handler));
+
+        var release = await source.GetLatestAsync();
+
+        Assert.Equal("2.3.4", release.Version);
+        Assert.Equal("https://github.com/example/releases/tag/v2.3.4", release.ReleaseUrl);
+        Assert.Equal("api.github.com", handler.RequestUri!.Host);
+        Assert.Contains("SyncSentinel", handler.UserAgent);
     }
 
     [Fact]
@@ -226,6 +243,24 @@ public sealed class AppUpdateTests : IDisposable
         {
             PromptCount++;
             return Task.FromResult(Choice);
+        }
+    }
+
+    private sealed class StubHttpHandler(string responseBody) : HttpMessageHandler
+    {
+        public Uri? RequestUri { get; private set; }
+        public string UserAgent { get; private set; } = string.Empty;
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestUri = request.RequestUri;
+            UserAgent = request.Headers.UserAgent.ToString();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseBody, Encoding.UTF8, "application/json"),
+            });
         }
     }
 }
