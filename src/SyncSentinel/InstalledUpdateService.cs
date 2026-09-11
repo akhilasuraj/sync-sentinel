@@ -17,6 +17,7 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
     private MainForm? _form;
     private SparkleUpdater? _sparkle;
     private System.Windows.Forms.Timer? _retryTimer;
+    private AppCastItem? _deferredUpdate;
 
     public InstalledUpdateService(RunQueue queue)
     {
@@ -46,7 +47,18 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
             }
             _installGuard.Release();
             _retryTimer.Stop();
-            await CheckAsync(UpdateCheckMode.Automatic);
+            var deferred = _deferredUpdate;
+            if (deferred is not null)
+            {
+                await _sparkle!.InstallUpdate(deferred);
+            }
+        };
+        _sparkle.UserRespondedToUpdate += (_, eventArgs) =>
+        {
+            if (eventArgs.Result == UpdateAvailableResult.InstallUpdate)
+            {
+                _deferredUpdate = eventArgs.UpdateItem;
+            }
         };
         _sparkle.PreparingToExit += (_, eventArgs) =>
         {
@@ -66,7 +78,11 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
             _installGuard.Release();
             return true;
         };
-        _sparkle.CloseApplication += () => form.BeginInvoke(form.ExitApplication);
+        _sparkle.CloseApplication += () =>
+        {
+            _deferredUpdate = null;
+            form.BeginInvoke(form.ExitApplication);
+        };
     }
 
     public async Task<AppUpdateStatus> CheckAsync(

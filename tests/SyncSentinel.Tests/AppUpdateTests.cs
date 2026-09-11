@@ -52,6 +52,9 @@ public sealed class AppUpdateTests : IDisposable
     [InlineData("1.2.3", "1.2.3", false)]
     [InlineData("1.2.2", "1.2.3", false)]
     [InlineData("v2.0.0", "1.9.9", true)]
+    [InlineData("1.0.0", "1.0.0-beta.1", true)]
+    [InlineData("1.0.0-beta.2", "1.0.0-beta.1", true)]
+    [InlineData("1.0.0-beta.1", "1.0.0", false)]
     public void Portable_version_comparison_only_accepts_newer_semantic_versions(
         string candidate, string current, bool expected) =>
         Assert.Equal(expected, PortableUpdatePolicy.IsNewer(candidate, current));
@@ -61,10 +64,10 @@ public sealed class AppUpdateTests : IDisposable
     {
         var now = new DateTimeOffset(2026, 9, 11, 10, 0, 0, TimeSpan.Zero);
 
-        Assert.False(PortableUpdatePolicy.ShouldCheck(now.AddMinutes(-5), now, manual: false));
-        Assert.True(PortableUpdatePolicy.ShouldCheck(now.AddMinutes(-5), now, manual: true));
-        Assert.False(PortableUpdatePolicy.ShouldPrompt("2.0.0", "2.0.0", manual: false));
-        Assert.True(PortableUpdatePolicy.ShouldPrompt("2.0.0", "2.0.0", manual: true));
+        Assert.False(PortableUpdatePolicy.ShouldCheck(now.AddMinutes(-5), now, UpdateCheckMode.Automatic));
+        Assert.True(PortableUpdatePolicy.ShouldCheck(now.AddMinutes(-5), now, UpdateCheckMode.UserRequested));
+        Assert.False(PortableUpdatePolicy.ShouldPrompt("2.0.0", "2.0.0", UpdateCheckMode.Automatic));
+        Assert.True(PortableUpdatePolicy.ShouldPrompt("2.0.0", "2.0.0", UpdateCheckMode.UserRequested));
     }
 
     [Fact]
@@ -97,6 +100,22 @@ public sealed class AppUpdateTests : IDisposable
 
         Assert.Equal(AppUpdateCheckState.Error, result.State);
         Assert.Equal(0, interaction.PromptCount);
+    }
+
+    [Fact]
+    public async Task Portable_view_release_choice_keeps_the_exact_release_url_available()
+    {
+        var release = new UpdateRelease("2.0.0", "https://example.test/releases/v2");
+        var store = new MemoryUpdateStateStore();
+        var interaction = new FakePortableInteraction(PortableUpdateChoice.ViewRelease);
+        var service = new PortableUpdateService(
+            "1.0.0", new FakeReleaseSource(release), store, interaction);
+
+        var result = await service.CheckAsync(UpdateCheckMode.UserRequested);
+
+        Assert.Equal(release.ReleaseUrl, result.ReleaseUrl);
+        Assert.Null(store.State.SkippedVersion);
+        Assert.Equal(1, interaction.PromptCount);
     }
 
     [Fact]

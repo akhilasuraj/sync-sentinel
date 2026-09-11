@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using NuGet.Versioning;
 
 namespace SyncSentinel.Core;
 
@@ -72,15 +73,16 @@ public static class PortableUpdatePolicy
 {
     public static readonly TimeSpan CheckCooldown = TimeSpan.FromHours(24);
 
-    public static bool ShouldCheck(DateTimeOffset? lastCheckedUtc, DateTimeOffset now, bool manual) =>
-        manual || lastCheckedUtc is null || now - lastCheckedUtc >= CheckCooldown;
+    public static bool ShouldCheck(DateTimeOffset? lastCheckedUtc, DateTimeOffset now, UpdateCheckMode mode) =>
+        mode == UpdateCheckMode.UserRequested || lastCheckedUtc is null || now - lastCheckedUtc >= CheckCooldown;
 
-    public static bool ShouldPrompt(string version, string? skippedVersion, bool manual) =>
-        manual || !string.Equals(version, skippedVersion, StringComparison.OrdinalIgnoreCase);
+    public static bool ShouldPrompt(string version, string? skippedVersion, UpdateCheckMode mode) =>
+        mode == UpdateCheckMode.UserRequested ||
+        !string.Equals(version, skippedVersion, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsNewer(string candidate, string current) =>
-        Version.TryParse(candidate.TrimStart('v', 'V').Split('-', '+')[0], out var candidateVersion) &&
-        Version.TryParse(current.TrimStart('v', 'V').Split('-', '+')[0], out var currentVersion) &&
+        NuGetVersion.TryParse(candidate.TrimStart('v', 'V'), out var candidateVersion) &&
+        NuGetVersion.TryParse(current.TrimStart('v', 'V'), out var currentVersion) &&
         candidateVersion > currentVersion;
 }
 

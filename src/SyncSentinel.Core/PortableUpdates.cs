@@ -118,10 +118,9 @@ public sealed class PortableUpdateService : IAppUpdateService
         await _checkGate.WaitAsync(cancellationToken);
         try
         {
-            var manual = mode == UpdateCheckMode.UserRequested;
             var state = _stateStore.Load();
             var now = _timeProvider.GetUtcNow();
-            if (!PortableUpdatePolicy.ShouldCheck(state.LastCheckedUtc, now, manual))
+            if (!PortableUpdatePolicy.ShouldCheck(state.LastCheckedUtc, now, mode))
             {
                 return Status = Status with
                 {
@@ -145,7 +144,7 @@ public sealed class PortableUpdateService : IAppUpdateService
                 $"SyncSentinel {release.Version} is available. Portable copies are updated manually.",
                 release.ReleaseUrl);
 
-            if (PortableUpdatePolicy.ShouldPrompt(release.Version, state.SkippedVersion, manual))
+            if (PortableUpdatePolicy.ShouldPrompt(release.Version, state.SkippedVersion, mode))
             {
                 var choice = await _interaction.PromptAsync(release, cancellationToken);
                 if (choice == PortableUpdateChoice.SkipVersion)
