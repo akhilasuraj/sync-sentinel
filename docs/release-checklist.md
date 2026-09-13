@@ -22,7 +22,9 @@ Before pushing a release tag:
    cancel work.
 7. Let the Run Queue become idle and install. Confirm the old process, Kestrel,
    WebView2, and tray icon exit; Inno upgrades the existing directory; settings,
-   history, and autostart survive; and SyncSentinel relaunches exactly once.
+   history, and autostart survive; and SyncSentinel relaunches exactly once. On
+   Windows, also confirm NetSparkle cached the installer with an `.exe` extension
+   and that Apps & features reports the N+1 `DisplayVersion` after Inno exits.
 8. On the relaunched N+1 build, run an automatic and manual check. Both must
    report the application current and must not offer N+1 again.
 9. Confirm **Remind me later** allows N+1 to return on the next eligible check,
