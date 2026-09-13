@@ -1,5 +1,8 @@
 using NetSparkleUpdater;
+using NetSparkleUpdater.AssemblyAccessors;
+using NetSparkleUpdater.Configurations;
 using NetSparkleUpdater.Enums;
+using NetSparkleUpdater.Interfaces;
 using NetSparkleUpdater.SignatureVerifiers;
 using SyncSentinel.Core;
 
@@ -13,15 +16,17 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
     private const string PublicKey = "nEDaY7ezIENToBpyirIB7a/EK+LTwW8qBUvF7WOjxzM=";
 
     private readonly UpdateInstallGuard _installGuard;
+    private readonly InstalledUpdateProfile _profile;
     private readonly SemaphoreSlim _checkGate = new(1, 1);
     private MainForm? _form;
     private SparkleUpdater? _sparkle;
     private System.Windows.Forms.Timer? _retryTimer;
     private AppCastItem? _deferredUpdate;
 
-    public InstalledUpdateService(RunQueue queue)
+    public InstalledUpdateService(RunQueue queue, StoragePaths paths, string currentVersion)
     {
         _installGuard = new UpdateInstallGuard(queue);
+        _profile = InstalledUpdateProfile.Create(paths, currentVersion);
         Status = AppUpdateStatus.Idle(Distribution);
     }
 
@@ -32,8 +37,16 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
     public void SetForm(MainForm form)
     {
         _form = form;
-        _sparkle = new SparkleUpdater(AppcastUrl, new Ed25519Checker(SecurityMode.Strict, PublicKey))
+        Directory.CreateDirectory(Path.GetDirectoryName(_profile.StatePath)!);
+        var executablePath = Environment.ProcessPath!;
+        var accessor = new InstalledAssemblyAccessor(executablePath, _profile.CurrentVersion);
+        var configuration = new JSONConfiguration(accessor, _profile.StatePath);
+        _sparkle = new SparkleUpdater(
+            AppcastUrl,
+            new Ed25519Checker(SecurityMode.Strict, PublicKey),
+            executablePath)
         {
+            Configuration = configuration,
             UIFactory = new NetSparkleUpdater.UI.WinForms.UIFactory(form.Icon),
             RelaunchAfterUpdate = true,
             CustomInstallerArguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART",
@@ -173,5 +186,18 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
         _sparkle?.Dispose();
         _retryTimer?.Dispose();
         _checkGate.Dispose();
+    }
+
+    private sealed class InstalledAssemblyAccessor(string executablePath, string currentVersion)
+        : IAssemblyAccessor
+    {
+        private readonly AssemblyDiagnosticsAccessor _inner = new(executablePath);
+
+        public string AssemblyVersion => currentVersion;
+        public string AssemblyTitle => _inner.AssemblyTitle;
+        public string AssemblyDescription => _inner.AssemblyDescription;
+        public string AssemblyProduct => _inner.AssemblyProduct;
+        public string AssemblyCompany => _inner.AssemblyCompany;
+        public string AssemblyCopyright => _inner.AssemblyCopyright;
     }
 }

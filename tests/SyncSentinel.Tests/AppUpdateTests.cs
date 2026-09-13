@@ -60,6 +60,19 @@ public sealed class AppUpdateTests : IDisposable
         string candidate, string current, bool expected) =>
         Assert.Equal(expected, PortableUpdatePolicy.IsNewer(candidate, current));
 
+    [Theory]
+    [InlineData("0.6.0+b973401", "0.6.0")]
+    [InlineData("v1.2.0-beta.1+build.42", "1.2.0-beta.1")]
+    public void Installed_update_profile_uses_public_semver_without_build_metadata(
+        string stampedVersion,
+        string expectedVersion)
+    {
+        var profile = InstalledUpdateProfile.Create(new StoragePaths(_scratch), stampedVersion);
+
+        Assert.Equal(expectedVersion, profile.CurrentVersion);
+        Assert.Equal(Path.Combine(_scratch, "installed-update-state.json"), profile.StatePath);
+    }
+
     [Fact]
     public void Manual_portable_checks_bypass_cooldown_and_skipped_version()
     {
@@ -198,8 +211,9 @@ public sealed class AppUpdateTests : IDisposable
     [Fact]
     public void Release_pipeline_publishes_a_signed_appcast_for_the_silent_installer()
     {
-        var root = FindRepositoryRoot();
+        var root = RepositoryPaths.Root;
         var workflow = File.ReadAllText(Path.Combine(root, ".github", "workflows", "release.yml"));
+        var feedBuilder = File.ReadAllText(Path.Combine(root, ".github", "scripts", "Build-ReleaseFeed.ps1"));
         var installer = File.ReadAllText(Path.Combine(root, "installer", "SyncSentinel.iss"));
         var installedUpdater = File.ReadAllText(Path.Combine(root, "src", "SyncSentinel", "InstalledUpdateService.cs"));
         var compiledPublicKey = Regex.Match(installedUpdater, "PublicKey = \"([^\"]+)\"").Groups[1].Value;
@@ -208,20 +222,17 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains("netsparkle-generate-appcast", workflow);
         Assert.Contains("appcast.xml.signature", workflow);
         Assert.Contains("SyncSentinel-Setup.exe", workflow);
+        Assert.Contains("releases/generate-notes", workflow);
+        Assert.Contains("Build-ReleaseFeed.ps1", workflow);
+        Assert.Contains("ProductVersion", workflow);
+        Assert.Contains("--change-log-path", feedBuilder);
+        Assert.Contains("--reparse-existing", feedBuilder);
+        Assert.Contains("Validate-ReleaseFeed.ps1", feedBuilder);
+        Assert.Contains("--notes-file", workflow);
         Assert.False(string.IsNullOrWhiteSpace(compiledPublicKey));
         Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);
         Assert.Contains("skipifsilent", installer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--quit", installer);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "SyncSentinel.slnx")))
-        {
-            directory = directory.Parent;
-        }
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Could not find the repository root.");
     }
 
     private sealed record Capabilities(string Updates);

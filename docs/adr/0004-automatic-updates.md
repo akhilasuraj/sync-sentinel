@@ -21,6 +21,12 @@ backup work.
   shell; the private key exists only in the repository's `SPARKLE_PRIVATE_KEY` Actions
   secret. Release automation fails unless it can publish the installer, `appcast.xml`,
   and the appcast signature together.
+- The installed updater compares a normalized public semantic version and stores its
+  JSON check/skip state beneath `StoragePaths.Root`; CI source-revision metadata cannot
+  make a release appear newer than itself, and purge owns the updater state.
+- Release automation generates GitHub notes before signing a cumulative appcast. Each
+  retained release has embedded notes or a version-specific notes link, and publication
+  fails if versions, history, ordering, notes, enclosure metadata, or signatures drift.
 - The existing Inno installer remains per-user and retains its stable AppId and
   directory. NetSparkle invokes it silently, asks the real tray process to exit, and
   relaunches once. Application data remains under `%APPDATA%\SyncSentinel`, so an

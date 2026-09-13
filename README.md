@@ -148,7 +148,8 @@ Automatic update checks are enabled by default and can be disabled under **Setti
 manual checks remain available there. An update never installs while a backup is
 running or queued. Release builds publish an Ed25519-signed NetSparkle appcast; the
 repository's `SPARKLE_PRIVATE_KEY` Actions secret must match the public key compiled
-into `InstalledUpdateService`.
+into `InstalledUpdateService`. Before tagging, complete the
+[installed N-to-N+1 release checklist](docs/release-checklist.md).
 
 ## License
 

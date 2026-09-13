@@ -69,6 +69,19 @@ public sealed class UpdateInstallGuard(RunQueue queue)
     public void Release() => queue.ReleaseUpdateReservation();
 }
 
+public sealed record InstalledUpdateProfile(string CurrentVersion, string StatePath)
+{
+    public static InstalledUpdateProfile Create(StoragePaths paths, string stampedVersion)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        var parsed = NuGetVersion.Parse(stampedVersion.TrimStart('v', 'V'));
+        var publicVersion = $"{parsed.Major}.{parsed.Minor}.{parsed.Patch}" +
+            (string.IsNullOrEmpty(parsed.Release) ? string.Empty : $"-{parsed.Release}");
+
+        return new(publicVersion, Path.Combine(paths.Root, "installed-update-state.json"));
+    }
+}
+
 public static class PortableUpdatePolicy
 {
     public static readonly TimeSpan CheckCooldown = TimeSpan.FromHours(24);

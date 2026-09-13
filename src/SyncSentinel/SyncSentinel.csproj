@@ -12,6 +12,9 @@
     <!-- Dev default; CI publishes with -p:Version=<git tag> to stamp the real
          version into the assembly (read back at runtime for the in-app display). -->
     <Version>0.0.0-dev</Version>
+    <!-- NetSparkle compares ProductVersion with the appcast version. A +commit
+         suffix makes the same public release compare as an older prerelease. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 
     <!-- App icon (Explorer / taskbar / installer's UninstallDisplayIcon). The
          master lives in assets/; referenced here so there's no duplicate copy. -->
@@ -62,7 +65,7 @@
 
   <!-- Convenience: build the React app if it hasn't been built yet (fresh
        clone). Day-to-day, run `npm run build` in src/web after UI changes. -->
-  <Target Name="BuildReactApp" BeforeTargets="Build" Condition="!Exists('wwwroot\index.html')">
+  <Target Name="BuildReactApp" BeforeTargets="Build" Condition="'$(SkipWebBuild)' != 'true' and !Exists('wwwroot\index.html')">
     <Message Importance="high" Text="wwwroot empty — building React app (src/web)..." />
     <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)\..\web" />
     <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)\..\web" />

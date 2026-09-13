@@ -65,7 +65,52 @@ jobs:
       # installer\, so this packs ..\publish-app and writes installer\SyncSentinel-Setup.exe.
       - name: Build installer (Inno Setup)
         shell: pwsh
-        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.version }} installer\SyncSentinel.iss'
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=${{ steps.ver.outputs.version }} installer\SyncSentinel.iss
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Inno Setup could not build the installer.'
+          }
+          $installerVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo('installer\SyncSentinel-Setup.exe').ProductVersion
+          if ($installerVersion -ne '${{ steps.ver.outputs.version }}') {
+            throw "The compiled installer reports '$installerVersion'; expected '${{ steps.ver.outputs.version }}'."
+          }
+
+      # Generate the authoritative notes before the feed is signed. The same
+      # Markdown is embedded in the appcast and published as the release body.
+      - name: Generate release notes
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force release-notes | Out-Null
+          $notes = gh api --method POST "repos/${{ github.repository }}/releases/generate-notes" `
+            -f tag_name="${{ github.ref_name }}" `
+            -f target_commitish="${{ github.sha }}" | ConvertFrom-Json
+          if ([string]::IsNullOrWhiteSpace($notes.body)) {
+            throw 'GitHub generated an empty release changelog.'
+          }
+          $notes.body | Set-Content -Encoding utf8NoBOM "release-notes/${{ steps.ver.outputs.version }}.md"
+
+      # Start from the previous stable feed so users upgrading across several
+      # versions see every intervening release. Feed backfilling is performed by
+      # the tested Build-ReleaseFeed script immediately before generation.
+      - name: Restore previous appcast
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force release-feed | Out-Null
+          $releases = @(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not determine the previous stable release.'
+          }
+          if ($releases.Count -eq 0) {
+            exit 0
+          }
+          gh release download $releases[0].tagName --pattern appcast.xml --dir release-feed --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "The previous stable release $($releases[0].tagName) has no downloadable appcast."
+          }
 
       # NetSparkle verifies both the appcast and installer with the stable
       # Ed25519 public key compiled into the app. The private key exists only as
@@ -79,24 +124,41 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SPARKLE_PRIVATE_KEY)) {
             throw 'The SPARKLE_PRIVATE_KEY repository secret is required to publish updates.'
           }
-          dotnet tool install NetSparkleUpdater.Tools.AppCastGenerator --version 2.9.0 --tool-path .tools
-          New-Item -ItemType Directory -Force release-feed | Out-Null
-          .\.tools\netsparkle-generate-appcast.exe `
-            --single-file installer\SyncSentinel-Setup.exe `
-            --file-version ${{ steps.ver.outputs.version }} `
-            --base-url "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/" `
-            --appcast-output-directory release-feed `
-            --link-tag "https://github.com/${{ github.repository }}/releases" `
-            --product-name SyncSentinel `
-            --human-readable true
-          if (-not (Test-Path release-feed\appcast.xml) -or -not (Test-Path release-feed\appcast.xml.signature)) {
-            throw 'The signed NetSparkle appcast was not generated.'
+          foreach ($executable in @('publish\SyncSentinel.exe', 'publish-app\SyncSentinel.exe')) {
+            $productVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($executable).ProductVersion
+            if ($productVersion -ne '${{ steps.ver.outputs.version }}') {
+              throw "$executable reports '$productVersion'; expected '${{ steps.ver.outputs.version }}'."
+            }
           }
-          if (-not (Select-String -Quiet -SimpleMatch 'sparkle:signature=' release-feed\appcast.xml)) {
-            throw 'The installer entry in appcast.xml is unsigned.'
+          dotnet tool install NetSparkleUpdater.Tools.AppCastGenerator --version 2.9.0 --tool-path .tools
+          .\.github\scripts\Build-ReleaseFeed.ps1 `
+            -GeneratorPath .\.tools\netsparkle-generate-appcast.exe `
+            -InstallerPath installer\SyncSentinel-Setup.exe `
+            -FeedDirectory release-feed `
+            -ChangeLogDirectory release-notes `
+            -Version '${{ steps.ver.outputs.version }}' `
+            -BaseUrl 'https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}' `
+            -LatestAppcastUrl 'https://github.com/${{ github.repository }}/releases/latest/download/appcast.xml' `
+            -RepositoryUrl 'https://github.com/${{ github.repository }}'
+
+          [xml] $appcast = Get-Content release-feed\appcast.xml -Raw
+          $sparkle = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
+          $ns = [System.Xml.XmlNamespaceManager]::new($appcast.NameTable)
+          $ns.AddNamespace('sparkle', $sparkle)
+          $installerSignature = $appcast.SelectSingleNode('/rss/channel/item[1]/enclosure', $ns).GetAttribute('signature', $sparkle)
+          $installerVerification = @(.\.tools\netsparkle-generate-appcast.exe `
+            --verify installer\SyncSentinel-Setup.exe --signature $installerSignature)
+          if ('Signature valid' -notin $installerVerification) {
+            throw 'The current installer signature failed Ed25519 verification.'
+          }
+          $appcastSignature = (Get-Content release-feed\appcast.xml.signature -Raw).Trim()
+          $appcastVerification = @(.\.tools\netsparkle-generate-appcast.exe `
+            --verify release-feed\appcast.xml --signature $appcastSignature)
+          if ('Signature valid' -notin $appcastVerification) {
+            throw 'The detached appcast signature failed Ed25519 verification.'
           }
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" "publish/SyncSentinel.exe" "installer/SyncSentinel-Setup.exe" "release-feed/appcast.xml" "release-feed/appcast.xml.signature" --title "SyncSentinel ${{ github.ref_name }}" --generate-notes
+        run: gh release create "${{ github.ref_name }}" "publish/SyncSentinel.exe" "installer/SyncSentinel-Setup.exe" "release-feed/appcast.xml" "release-feed/appcast.xml.signature" --title "SyncSentinel ${{ github.ref_name }}" --notes-file "release-notes/${{ steps.ver.outputs.version }}.md"

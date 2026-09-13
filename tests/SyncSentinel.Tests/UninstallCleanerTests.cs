@@ -27,6 +27,8 @@ public sealed class UninstallCleanerTests : IDisposable
     {
         Directory.CreateDirectory(Path.Combine(_root, "logs"));
         File.WriteAllText(Path.Combine(_root, "config.json"), "{}");
+        var updaterState = InstalledUpdateProfile.Create(new StoragePaths(_root), "1.0.0").StatePath;
+        File.WriteAllText(updaterState, "{}");
 
         New().Clean(purgeData: true);
 
@@ -38,11 +40,14 @@ public sealed class UninstallCleanerTests : IDisposable
     {
         Directory.CreateDirectory(_root);
         File.WriteAllText(Path.Combine(_root, "config.json"), "{}");
+        var updaterState = InstalledUpdateProfile.Create(new StoragePaths(_root), "1.0.0").StatePath;
+        File.WriteAllText(updaterState, "{}");
 
         New().Clean(purgeData: false);
 
         Assert.True(Directory.Exists(_root));
         Assert.True(File.Exists(Path.Combine(_root, "config.json")));
+        Assert.True(File.Exists(updaterState));
     }
 
     [Fact]
