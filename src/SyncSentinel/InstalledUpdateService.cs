@@ -70,6 +70,10 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
         {
             if (eventArgs.Result == UpdateAvailableResult.InstallUpdate)
             {
+                // GitHub asset downloads can resolve to an extensionless GUID.
+                // NetSparkle's Windows cmd helper cannot execute that cached path.
+                _sparkle.TmpDownloadFileNameWithExtension =
+                    $"SyncSentinel-Setup-{eventArgs.UpdateItem.Version}.exe";
                 _deferredUpdate = eventArgs.UpdateItem;
             }
         };
@@ -94,7 +98,14 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
         _sparkle.CloseApplication += () =>
         {
             _deferredUpdate = null;
-            form.BeginInvoke(form.ExitApplication);
+            if (form.InvokeRequired)
+            {
+                form.Invoke(form.ExitApplication);
+            }
+            else
+            {
+                form.ExitApplication();
+            }
         };
     }
 

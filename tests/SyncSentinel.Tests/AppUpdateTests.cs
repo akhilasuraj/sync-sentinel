@@ -223,6 +223,8 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains("appcast.xml.signature", workflow);
         Assert.Contains("SyncSentinel-Setup.exe", workflow);
         Assert.Contains("releases/generate-notes", workflow);
+        Assert.Contains("previous_tag_name", workflow);
+        Assert.Contains("gh release view", workflow);
         Assert.Contains("Build-ReleaseFeed.ps1", workflow);
         Assert.Contains("ProductVersion", workflow);
         Assert.Contains("--change-log-path", feedBuilder);
@@ -233,6 +235,9 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);
         Assert.Contains("skipifsilent", installer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--quit", installer);
+        Assert.Contains("TmpDownloadFileNameWithExtension", installedUpdater);
+        Assert.Contains("SyncSentinel-Setup-{eventArgs.UpdateItem.Version}.exe", installedUpdater);
+        Assert.DoesNotContain("UpdateExitHandoff", installedUpdater);
     }
 
     private sealed record Capabilities(string Updates);

@@ -85,6 +85,7 @@ public sealed class ReleaseFeedContractTests : IDisposable
         Directory.CreateDirectory(feedDirectory);
         Directory.CreateDirectory(notesDirectory);
         File.WriteAllText(Path.Combine(feedDirectory, "appcast.xml"), Appcast(Item("1.1.0", string.Empty)));
+        File.WriteAllText(Path.Combine(notesDirectory, "1.1.0.md"), "Complete changes in 1.1.0");
         File.WriteAllText(Path.Combine(notesDirectory, "1.2.0.md"), "Changes in 1.2.0");
 
         var generator = Path.Combine(_scratch, "fake-generator.ps1");
@@ -121,9 +122,8 @@ public sealed class ReleaseFeedContractTests : IDisposable
         var document = System.Xml.Linq.XDocument.Load(Path.Combine(feedDirectory, "appcast.xml"));
         var items = document.Root!.Element("channel")!.Elements("item").ToArray();
         Assert.Equal(new[] { "1.2.0", "1.1.0" }, items.Select(item => item.Element(sparkle + "version")!.Value));
-        Assert.Equal(
-            "https://example.test/releases/tag/v1.1.0",
-            items[1].Element(sparkle + "releaseNotesLink")!.Value);
+        Assert.Equal("Complete changes in 1.1.0", items[1].Element("description")!.Value);
+        Assert.Null(items[1].Element(sparkle + "releaseNotesLink"));
     }
 
     private ValidationResult ValidateFeed(string appcast, string extraArguments = "")
