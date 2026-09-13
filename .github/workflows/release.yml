@@ -71,9 +71,10 @@ jobs:
             throw 'Inno Setup could not build the installer.'
           }
           $installerVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo('installer\SyncSentinel-Setup.exe').ProductVersion
-          if ($installerVersion -ne '${{ steps.ver.outputs.version }}') {
-            throw "The compiled installer reports '$installerVersion'; expected '${{ steps.ver.outputs.version }}'."
-          }
+          .\.github\scripts\Assert-ReleaseVersion.ps1 `
+            -ActualVersion $installerVersion `
+            -ExpectedVersion '${{ steps.ver.outputs.version }}' `
+            -ArtifactName 'The compiled installer'
 
       # Generate the authoritative notes before the feed is signed. The same
       # Markdown is embedded in the appcast and published as the release body.
@@ -126,9 +127,10 @@ jobs:
           }
           foreach ($executable in @('publish\SyncSentinel.exe', 'publish-app\SyncSentinel.exe')) {
             $productVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($executable).ProductVersion
-            if ($productVersion -ne '${{ steps.ver.outputs.version }}') {
-              throw "$executable reports '$productVersion'; expected '${{ steps.ver.outputs.version }}'."
-            }
+            .\.github\scripts\Assert-ReleaseVersion.ps1 `
+              -ActualVersion $productVersion `
+              -ExpectedVersion '${{ steps.ver.outputs.version }}' `
+              -ArtifactName $executable
           }
           dotnet tool install NetSparkleUpdater.Tools.AppCastGenerator --version 2.9.0 --tool-path .tools
           .\.github\scripts\Build-ReleaseFeed.ps1 `
