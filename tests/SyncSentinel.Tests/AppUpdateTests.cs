@@ -209,24 +209,6 @@ public sealed class AppUpdateTests : IDisposable
     }
 
     [Fact]
-    public async Task Installed_update_exit_waits_until_the_UI_exit_callback_has_run()
-    {
-        Action? queuedExit = null;
-        var exited = false;
-
-        var handoff = UpdateExitHandoff.DispatchAsync(
-            requiresDispatch: true,
-            dispatch: action => queuedExit = action,
-            exit: () => exited = true);
-
-        Assert.False(handoff.IsCompleted);
-        Assert.False(exited);
-        queuedExit!();
-        await handoff;
-        Assert.True(exited);
-    }
-
-    [Fact]
     public void Release_pipeline_publishes_a_signed_appcast_for_the_silent_installer()
     {
         var root = RepositoryPaths.Root;
@@ -253,6 +235,9 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains($"SPARKLE_PUBLIC_KEY: {compiledPublicKey}", workflow);
         Assert.Contains("skipifsilent", installer, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--quit", installer);
+        Assert.Contains("TmpDownloadFileNameWithExtension", installedUpdater);
+        Assert.Contains("SyncSentinel-Setup-{eventArgs.UpdateItem.Version}.exe", installedUpdater);
+        Assert.DoesNotContain("UpdateExitHandoff", installedUpdater);
     }
 
     private sealed record Capabilities(string Updates);
