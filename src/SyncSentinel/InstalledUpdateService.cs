@@ -91,10 +91,13 @@ internal sealed class InstalledUpdateService : IAppUpdateService, IDisposable
             _installGuard.Release();
             return true;
         };
-        _sparkle.CloseApplication += () =>
+        _sparkle.CloseApplicationAsync += () =>
         {
             _deferredUpdate = null;
-            form.BeginInvoke(form.ExitApplication);
+            return UpdateExitHandoff.DispatchAsync(
+                form.InvokeRequired,
+                action => form.BeginInvoke(action),
+                form.ExitApplication);
         };
     }
 

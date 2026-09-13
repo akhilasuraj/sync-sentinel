@@ -31,13 +31,25 @@ if (Test-Path $appcastPath) {
 
         $priorVersion = $versionNode.InnerText.Trim()
         $requiredVersions += $priorVersion
+        $changeLogPath = Join-Path $ChangeLogDirectory "$priorVersion.md"
+        if (-not (Test-Path $changeLogPath)) {
+            throw "Release notes for historical version $priorVersion were not restored."
+        }
+        $changeLog = (Get-Content $changeLogPath -Raw).Trim()
+        if ([string]::IsNullOrWhiteSpace($changeLog)) {
+            throw "Release notes for historical version $priorVersion are empty."
+        }
+
         $description = $item.SelectSingleNode('description')
+        if ($null -eq $description) {
+            $description = $feed.CreateElement('description')
+            $item.AppendChild($description) | Out-Null
+        }
+        $description.InnerText = $changeLog
+
         $notesLink = $item.SelectSingleNode('sparkle:releaseNotesLink', $ns)
-        if (($null -eq $description -or [string]::IsNullOrWhiteSpace($description.InnerText)) -and
-            ($null -eq $notesLink -or [string]::IsNullOrWhiteSpace($notesLink.InnerText))) {
-            $notesLink = $feed.CreateElement('sparkle', 'releaseNotesLink', $sparkle)
-            $notesLink.InnerText = "$normalizedRepositoryUrl/releases/tag/v$priorVersion"
-            $item.AppendChild($notesLink) | Out-Null
+        if ($null -ne $notesLink) {
+            $item.RemoveChild($notesLink) | Out-Null
         }
     }
 

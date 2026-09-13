@@ -209,6 +209,24 @@ public sealed class AppUpdateTests : IDisposable
     }
 
     [Fact]
+    public async Task Installed_update_exit_waits_until_the_UI_exit_callback_has_run()
+    {
+        Action? queuedExit = null;
+        var exited = false;
+
+        var handoff = UpdateExitHandoff.DispatchAsync(
+            requiresDispatch: true,
+            dispatch: action => queuedExit = action,
+            exit: () => exited = true);
+
+        Assert.False(handoff.IsCompleted);
+        Assert.False(exited);
+        queuedExit!();
+        await handoff;
+        Assert.True(exited);
+    }
+
+    [Fact]
     public void Release_pipeline_publishes_a_signed_appcast_for_the_silent_installer()
     {
         var root = RepositoryPaths.Root;
@@ -223,6 +241,8 @@ public sealed class AppUpdateTests : IDisposable
         Assert.Contains("appcast.xml.signature", workflow);
         Assert.Contains("SyncSentinel-Setup.exe", workflow);
         Assert.Contains("releases/generate-notes", workflow);
+        Assert.Contains("previous_tag_name", workflow);
+        Assert.Contains("gh release view", workflow);
         Assert.Contains("Build-ReleaseFeed.ps1", workflow);
         Assert.Contains("ProductVersion", workflow);
         Assert.Contains("--change-log-path", feedBuilder);

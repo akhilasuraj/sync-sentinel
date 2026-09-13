@@ -69,6 +69,47 @@ public sealed class UpdateInstallGuard(RunQueue queue)
     public void Release() => queue.ReleaseUpdateReservation();
 }
 
+public static class UpdateExitHandoff
+{
+    public static Task DispatchAsync(
+        bool requiresDispatch,
+        Action<Action> dispatch,
+        Action exit)
+    {
+        ArgumentNullException.ThrowIfNull(dispatch);
+        ArgumentNullException.ThrowIfNull(exit);
+
+        if (!requiresDispatch)
+        {
+            exit();
+            return Task.CompletedTask;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            dispatch(() =>
+            {
+                try
+                {
+                    exit();
+                    completion.TrySetResult();
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            });
+        }
+        catch (Exception exception)
+        {
+            completion.TrySetException(exception);
+        }
+
+        return completion.Task;
+    }
+}
+
 public sealed record InstalledUpdateProfile(string CurrentVersion, string StatePath)
 {
     public static InstalledUpdateProfile Create(StoragePaths paths, string stampedVersion)

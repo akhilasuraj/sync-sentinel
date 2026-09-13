@@ -76,31 +76,17 @@ jobs:
             -ExpectedVersion '${{ steps.ver.outputs.version }}' `
             -ArtifactName 'The compiled installer'
 
-      # Generate the authoritative notes before the feed is signed. The same
-      # Markdown is embedded in the appcast and published as the release body.
-      - name: Generate release notes
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          New-Item -ItemType Directory -Force release-notes | Out-Null
-          $notes = gh api --method POST "repos/${{ github.repository }}/releases/generate-notes" `
-            -f tag_name="${{ github.ref_name }}" `
-            -f target_commitish="${{ github.sha }}" | ConvertFrom-Json
-          if ([string]::IsNullOrWhiteSpace($notes.body)) {
-            throw 'GitHub generated an empty release changelog.'
-          }
-          $notes.body | Set-Content -Encoding utf8NoBOM "release-notes/${{ steps.ver.outputs.version }}.md"
-
-      # Start from the previous stable feed so users upgrading across several
-      # versions see every intervening release. Feed backfilling is performed by
-      # the tested Build-ReleaseFeed script immediately before generation.
-      - name: Restore previous appcast
+      # Restore the last stable feed and the authoritative Markdown for each
+      # historical item. Embedding Markdown avoids rendering the GitHub website
+      # (navigation, sign-in controls, and all) inside the updater dialog.
+      - name: Restore previous release history
+        id: previous_release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           New-Item -ItemType Directory -Force release-feed | Out-Null
+          New-Item -ItemType Directory -Force release-notes | Out-Null
           $releases = @(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName | ConvertFrom-Json)
           if ($LASTEXITCODE -ne 0) {
             throw 'Could not determine the previous stable release.'
@@ -108,10 +94,50 @@ jobs:
           if ($releases.Count -eq 0) {
             exit 0
           }
-          gh release download $releases[0].tagName --pattern appcast.xml --dir release-feed --clobber
+          $previousTag = $releases[0].tagName
+          "tag=$previousTag" >> $env:GITHUB_OUTPUT
+          gh release download $previousTag --pattern appcast.xml --dir release-feed --clobber
           if ($LASTEXITCODE -ne 0) {
-            throw "The previous stable release $($releases[0].tagName) has no downloadable appcast."
+            throw "The previous stable release $previousTag has no downloadable appcast."
           }
+
+          [xml] $previousFeed = Get-Content release-feed\appcast.xml -Raw
+          $sparkle = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
+          $ns = [System.Xml.XmlNamespaceManager]::new($previousFeed.NameTable)
+          $ns.AddNamespace('sparkle', $sparkle)
+          foreach ($item in @($previousFeed.SelectNodes('/rss/channel/item'))) {
+            $version = $item.SelectSingleNode('sparkle:version', $ns).InnerText.Trim()
+            $body = gh release view "v$version" --json body --jq .body
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($body)) {
+              throw "Could not restore release notes for v$version."
+            }
+            $body | Set-Content -Encoding utf8NoBOM "release-notes/$version.md"
+          }
+
+      # Generate authoritative notes against the previous published release,
+      # not merely the previous tag (which may belong to a failed release run).
+      - name: Generate release notes
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $parameters = @{
+            tag_name = '${{ github.ref_name }}'
+            target_commitish = '${{ github.sha }}'
+          }
+          $previousTag = '${{ steps.previous_release.outputs.tag }}'
+          if (-not [string]::IsNullOrWhiteSpace($previousTag)) {
+            $parameters.previous_tag_name = $previousTag
+          }
+          $arguments = @('--method', 'POST', 'repos/${{ github.repository }}/releases/generate-notes')
+          foreach ($entry in $parameters.GetEnumerator()) {
+            $arguments += @('-f', "$($entry.Key)=$($entry.Value)")
+          }
+          $notes = gh api @arguments | ConvertFrom-Json
+          if ([string]::IsNullOrWhiteSpace($notes.body)) {
+            throw 'GitHub generated an empty release changelog.'
+          }
+          $notes.body | Set-Content -Encoding utf8NoBOM "release-notes/${{ steps.ver.outputs.version }}.md"
 
       # NetSparkle verifies both the appcast and installer with the stable
       # Ed25519 public key compiled into the app. The private key exists only as
